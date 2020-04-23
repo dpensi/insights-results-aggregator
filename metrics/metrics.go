@@ -37,14 +37,14 @@ import (
 var APIRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "api_endpoints_requests",
 	Help: "The total number of requests per endpoint",
-}, []string{"url"})
+}, []string{"endpoint"})
 
 // APIResponsesTime collects the information about api response time per endpoint
 var APIResponsesTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "api_endpoints_response_time",
 	Help:    "API endpoints response time",
 	Buckets: prometheus.LinearBuckets(0, 20, 20),
-}, []string{"url"})
+}, []string{"endpoint"})
 
 // APIResponseStatusCodes collects the information about api response status codes
 var APIResponseStatusCodes = promauto.NewCounterVec(prometheus.CounterOpts{
