@@ -143,6 +143,8 @@ func NewWithSaramaConfig(
 		return nil, err
 	}
 
+	log.Info().Msgf("created consumer with starting offset %+v", nextOffset)
+
 	return &KafkaConsumer{
 		Configuration:          brokerCfg,
 		Consumer:               consumer,
@@ -170,6 +172,7 @@ func getOffsetManagers(
 	nextOffset, _ := partitionOffsetManager.NextOffset()
 	if nextOffset < 0 {
 		// if next offset wasn't stored yet, initial state of the broker
+		log.Info().Msg("saved offset was not found, consuming from the beginning")
 		nextOffset = sarama.OffsetOldest
 	}
 
@@ -240,8 +243,12 @@ func (consumer *KafkaConsumer) Serve() {
 	log.Info().Msgf("Consumer has been started, waiting for messages send to topic '%s'", consumer.Configuration.Topic)
 
 	for msg := range consumer.PartitionConsumer.Messages() {
+		metrics.ConsumedMessages.Inc()
+
 		err := consumer.ProcessMessage(msg)
 		if err != nil {
+			metrics.ConsumingErrors.Inc()
+
 			log.Error().Err(err).Msg("Error processing message consumed from Kafka")
 			consumer.numberOfErrorsConsumingMessages++
 
@@ -262,6 +269,8 @@ func (consumer *KafkaConsumer) saveLastMessageOffset(lastMessageOffset int64) {
 	// remember offset
 	if consumer.partitionOffsetManager != nil {
 		consumer.partitionOffsetManager.MarkOffset(lastMessageOffset+1, "")
+	} else {
+		log.Warn().Msgf(`not saving offset "%+v" because it's disabled'`, lastMessageOffset)
 	}
 }
 
@@ -300,7 +309,6 @@ func (consumer *KafkaConsumer) ProcessMessage(msg *sarama.ConsumerMessage) error
 		logUnparsedMessageError(consumer, msg, "Error parsing message from Kafka", err)
 		return err
 	}
-	metrics.ConsumedMessages.Inc()
 
 	logMessageInfo(consumer, msg, message, "Read")
 
