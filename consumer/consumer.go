@@ -40,6 +40,8 @@ const (
 	groupKey = "group"
 	// key for message offset used in structured log messages
 	offsetKey = "offset"
+	// key for message partition used in structured log messages
+	partitionKey = "partition"
 	// key for organization ID used in structured log messages
 	organizationKey = "organization"
 	// key for cluster ID used in structured log messages
@@ -245,8 +247,18 @@ func (consumer *KafkaConsumer) Serve() {
 	for msg := range consumer.PartitionConsumer.Messages() {
 		metrics.ConsumedMessages.Inc()
 
+		startTime := time.Now()
 		err := consumer.ProcessMessage(msg)
+		messageProcessingDuration := time.Since(startTime)
+
+		log.Info().
+			Int(offsetKey, int(msg.Offset)).
+			Int(partitionKey, int(msg.Partition)).
+			Str(topicKey, msg.Topic).
+			Msgf("processing of message took '%v' seconds", messageProcessingDuration.Seconds())
+
 		if err != nil {
+			metrics.FailedMessagesProcessingTime.Observe(messageProcessingDuration.Seconds())
 			metrics.ConsumingErrors.Inc()
 
 			log.Error().Err(err).Msg("Error processing message consumed from Kafka")
@@ -259,9 +271,13 @@ func (consumer *KafkaConsumer) Serve() {
 				consumer.saveLastMessageOffset(msg.Offset)
 			}
 		} else {
+			metrics.SuccessfulMessagesProcessingTime.Observe(messageProcessingDuration.Seconds())
 			consumer.numberOfSuccessfullyConsumedMessages++
 			consumer.saveLastMessageOffset(msg.Offset)
 		}
+		endTime := time.Now()
+		duration := endTime.Sub(startTime)
+		log.Info().Int64("duration", duration.Milliseconds()).Int64(offsetKey, msg.Offset).Msg("Message consumed")
 	}
 }
 
@@ -277,6 +293,7 @@ func (consumer *KafkaConsumer) saveLastMessageOffset(lastMessageOffset int64) {
 func logMessageInfo(consumer *KafkaConsumer, originalMessage *sarama.ConsumerMessage, parsedMessage incomingMessage, event string) {
 	log.Info().
 		Int(offsetKey, int(originalMessage.Offset)).
+		Int(partitionKey, int(originalMessage.Partition)).
 		Str(topicKey, consumer.Configuration.Topic).
 		Int(organizationKey, int(*parsedMessage.Organization)).
 		Str(clusterKey, string(*parsedMessage.ClusterName)).
@@ -341,6 +358,13 @@ func (consumer *KafkaConsumer) ProcessMessage(msg *sarama.ConsumerMessage) error
 		logMessageError(consumer, msg, message, "Error parsing date from message", err)
 		return err
 	}
+
+	lastCheckedTimestampLagMinutes := time.Now().Sub(lastCheckedTime).Minutes()
+	if lastCheckedTimestampLagMinutes < 0 {
+		logMessageError(consumer, msg, message, "got a message from the future", nil)
+	}
+
+	metrics.LastCheckedTimestampLagMinutes.Observe(lastCheckedTimestampLagMinutes)
 
 	logMessageInfo(consumer, msg, message, "Time ok")
 
