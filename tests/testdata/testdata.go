@@ -85,7 +85,7 @@ var (
 		"Report":` + ConsumerReport + `,
 		"LastChecked": "` + LastCheckedAt.Format(time.RFC3339) + `"
 	}`
-	LastCheckedAt     = time.Unix(25, 0)
+	LastCheckedAt     = time.Unix(25, 0).UTC()
 	RuleContent3Rules = content.RuleContentDirectory{
 		Config: content.GlobalRuleConfig{Impact: map[string]int{
 			"Two": 2,
@@ -277,21 +277,31 @@ func GetRandomConsumerMessage() string {
 	return consumerMessage
 }
 
-func GetRandomRuleID(length uint) string {
+func GetRandomRuleID(length uint) types.RuleID {
 	// disable Use of weak random number generator for the whole method
 	/* #nosec G404 */
-	var result string
+	var result types.RuleID
 
 	for i := uint(0); i < length; i++ {
 		char := rune('a' + rand.Intn('z'-'a'))
-		result += string(char)
+		result += types.RuleID(char)
 	}
 
 	return result
 }
 
-func GetRandomUserID() string {
+func GetRandomUserID() types.UserID {
 	// disable Use of weak random number generator for the whole method
 	/* #nosec G404 */
-	return fmt.Sprint(rand.Int())
+	return types.UserID(fmt.Sprint(rand.Intn(999999)))
+}
+
+func GetRandomOrgID() types.OrgID {
+	// disable Use of weak random number generator for the whole method
+	/* #nosec G404 */
+	return types.OrgID(rand.Intn(999999))
+}
+
+func GetRandomClusterID() types.ClusterName {
+	return types.ClusterName(uuid.New().String())
 }

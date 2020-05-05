@@ -26,8 +26,9 @@ package main
 import (
 	"os"
 
-	tests "github.com/RedHatInsights/insights-results-aggregator/tests/rest"
 	"github.com/verdverm/frisby"
+
+	tests "github.com/RedHatInsights/insights-results-aggregator/tests/rest"
 )
 
 func main() {

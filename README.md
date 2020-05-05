@@ -58,7 +58,7 @@ CREATE TABLE report (
 
 These tables represent the content for Insights rules to be displayed by OCM.
 The table `rule` represents more general information about the rule, whereas the `rule_error_key`
-contains information about the specific type of error which occured. The combination of these two create a unique rule.
+contains information about the specific type of error which occurred. The combination of these two create a unique rule.
 Very trivialized example could be:
 
 * rule "REQUIREMENTS_CHECK"
@@ -358,6 +358,21 @@ Currently, the following metrics are exposed:
 
 Additionally it is possible to consume all metrics provided by Go runtime. There metrics start with `go_` and `process_` prefixes.
 
+## pprof interface in debug mode
+
+In debug mode, standard Golang pprof interface is available at `/debug/pprof/`
+
+Common usage (for using pprof against local instance):
+
+```
+go tool pprof localhost:8080/debug/pprof/profile
+```
+
+A practical example is available here:
+https://medium.com/@paulborile/profiling-a-golang-rest-api-server-635fa0ed45f3
+
+
+
 ## Authentication
 
 Authentication is working through `x-rh-identity` token which is provided by 3scale. `x-rh-identity` is base64 encoded JSON, that includes data about user and organization, like:
@@ -396,7 +411,10 @@ Please look also at [Definitiot of Done](DoD.md) document with further informati
 
 ## Testing
 
-The following tests can be run to test your code in `insights-results-aggregator`. Detailed information about each type of test is included in the corresponding subsection:
+tl;dr: `make before_commit` will run most of the checks by magic
+
+The following tests can be run to test your code in `insights-results-aggregator`.
+Detailed information about each type of test is included in the corresponding subsection:
 
 1. Unit tests: checks behaviour of all units in source code (methods, functions)
 1. REST API Tests: test the real REST API of locally deployed application with database initialized with test data only
@@ -412,6 +430,8 @@ To run unit tests use the following command:
 
 `make test`
 
+If you have postgres running on port from `./config-devel.toml` file it will also run tests against it
+
 ### All integration tests
 
 `make integration_tests`
@@ -424,9 +444,9 @@ To run REST API tests use the following command:
 
 `make rest_api_tests`
 
-#### Only metrics tests
+By default all logs from the application aren't shown, if you want to see them, run:
 
-`make metrics_tests`
+`./test.sh rest_api --verbose`
 
 ## CI
 
@@ -549,3 +569,13 @@ Script displays two tables:
 ### `json_check.py`
 
 Simple checker if all JSONs have the correct syntax (not scheme).
+
+Usage:
+
+```
+usage: json_check.py [-h] [-v]
+
+optional arguments:
+  -h, --help     show this help message and exit
+  -v, --verbose  make it verbose
+```

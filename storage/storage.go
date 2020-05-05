@@ -99,7 +99,7 @@ type DBDriver int
 const (
 	// DBDriverSQLite3 shows that db driver is sqlite
 	DBDriverSQLite3 DBDriver = iota
-	// DBDriverPostgres shows that db driver is postrgres
+	// DBDriverPostgres shows that db driver is postgres
 	DBDriverPostgres
 	// DBDriverGeneral general sql(used for mock now)
 	DBDriverGeneral
@@ -112,6 +112,8 @@ const (
 type DBStorage struct {
 	connection   *sql.DB
 	dbDriverType DBDriver
+	// clusterLastCheckedDict is a dictionary of timestamps when the clusters were last checked.
+	clustersLastChecked map[types.ClusterName]time.Time
 }
 
 // New function creates and initializes a new instance of Storage interface
@@ -138,8 +140,9 @@ func New(configuration Configuration) (*DBStorage, error) {
 // NewFromConnection function creates and initializes a new instance of Storage interface from prepared connection
 func NewFromConnection(connection *sql.DB, dbDriverType DBDriver) *DBStorage {
 	return &DBStorage{
-		connection:   connection,
-		dbDriverType: dbDriverType,
+		connection:          connection,
+		dbDriverType:        dbDriverType,
+		clustersLastChecked: map[types.ClusterName]time.Time{},
 	}
 }
 
@@ -181,11 +184,40 @@ func initAndGetDriver(configuration Configuration) (driverType DBDriver, driverN
 
 // Init method is doing initialization like creating tables in underlying database
 func (storage DBStorage) Init() error {
+	// Perform all defined migrations on the database.
 	if err := migration.InitInfoTable(storage.connection); err != nil {
 		return err
 	}
+	if err := migration.SetDBVersion(storage.connection, migration.GetMaxVersion()); err != nil {
+		return err
+	}
 
-	return migration.SetDBVersion(storage.connection, migration.GetMaxVersion())
+	// Read clusterName:LastChecked dictionary from DB.
+	rows, err := storage.connection.Query("SELECT cluster, last_checked_at FROM report")
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		var (
+			clusterName types.ClusterName
+			lastChecked time.Time
+		)
+
+		if err := rows.Scan(&clusterName, &lastChecked); err != nil {
+			if closeErr := rows.Close(); closeErr != nil {
+				log.Error().Err(closeErr).Msg("Unable to close the DB rows handle")
+			}
+			return err
+		}
+
+		storage.clustersLastChecked[clusterName] = lastChecked
+	}
+
+	// Not using defer to close the rows here to:
+	// - make errcheck happy (it doesn't like ignoring returned errors),
+	// - return a possible error returned by the Close method.
+	return rows.Close()
 }
 
 // Close method closes the connection to database. Needs to be called at the end of application lifecycle.
@@ -221,6 +253,7 @@ func (storage DBStorage) ListOfOrgs() ([]types.OrgID, error) {
 	orgs := make([]types.OrgID, 0)
 
 	rows, err := storage.connection.Query("SELECT DISTINCT org_id FROM report ORDER BY org_id")
+	err = convertDBError(err)
 	if err != nil {
 		return orgs, err
 	}
@@ -244,6 +277,7 @@ func (storage DBStorage) ListOfClustersForOrg(orgID types.OrgID) ([]types.Cluste
 	clusters := make([]types.ClusterName, 0)
 
 	rows, err := storage.connection.Query("SELECT cluster FROM report WHERE org_id = $1 ORDER BY cluster", orgID)
+	err = convertDBError(err)
 	if err != nil {
 		return clusters, err
 	}
@@ -285,6 +319,7 @@ func (storage DBStorage) ReadReportForCluster(
 	err := storage.connection.QueryRow(
 		"SELECT report, last_checked_at FROM report WHERE org_id = $1 AND cluster = $2", orgID, clusterName,
 	).Scan(&report, &lastChecked)
+	err = convertDBError(err)
 
 	switch {
 	case err == sql.ErrNoRows:
@@ -295,7 +330,7 @@ func (storage DBStorage) ReadReportForCluster(
 		return "", "", err
 	}
 
-	return types.ClusterReport(report), types.Timestamp(lastChecked.Format(time.RFC3339)), nil
+	return types.ClusterReport(report), types.Timestamp(lastChecked.UTC().Format(time.RFC3339)), nil
 }
 
 // ReadReportForClusterByClusterName reads result (health status) for selected cluster for given organization
@@ -318,7 +353,7 @@ func (storage DBStorage) ReadReportForClusterByClusterName(
 		return "", "", err
 	}
 
-	return types.ClusterReport(report), types.Timestamp(lastChecked.Format(time.RFC3339)), nil
+	return types.ClusterReport(report), types.Timestamp(lastChecked.UTC().Format(time.RFC3339)), nil
 }
 
 // constructWhereClause constructs a dynamic WHERE .. IN clause
@@ -368,7 +403,7 @@ func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]ty
 	rules := make([]types.RuleContentResponse, 0)
 
 	query := `
-	SELECT 
+	SELECT
 		rek.error_key,
 		rek.rule_module,
 		rek.description,
@@ -430,6 +465,21 @@ func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]ty
 	return rules, nil
 }
 
+func (storage DBStorage) getReportUpsertQuery() (string, error) {
+	switch storage.dbDriverType {
+	case DBDriverSQLite3:
+		return `INSERT OR REPLACE INTO report(org_id, cluster, report, reported_at, last_checked_at)
+		 VALUES ($1, $2, $3, $4, $5)`, nil
+	case DBDriverPostgres:
+		return `INSERT INTO report(org_id, cluster, report, reported_at, last_checked_at)
+		 VALUES ($1, $2, $3, $4, $5)
+		 ON CONFLICT (org_id, cluster)
+		 DO UPDATE SET report = $3, reported_at = $4, last_checked_at = $5`, nil
+	default:
+		return "", fmt.Errorf("writing report with DB %v is not supported", storage.dbDriverType)
+	}
+}
+
 // WriteReportForCluster writes result (health status) for selected cluster for given organization
 func (storage DBStorage) WriteReportForCluster(
 	orgID types.OrgID,
@@ -437,21 +487,19 @@ func (storage DBStorage) WriteReportForCluster(
 	report types.ClusterReport,
 	lastCheckedTime time.Time,
 ) error {
-	var upsertQuery string
-
-	switch storage.dbDriverType {
-	case DBDriverSQLite3:
-		upsertQuery = `INSERT OR REPLACE INTO report(org_id, cluster, report, reported_at, last_checked_at)
-		 VALUES ($1, $2, $3, $4, $5)`
-	case DBDriverPostgres:
-		upsertQuery = `INSERT INTO report(org_id, cluster, report, reported_at, last_checked_at)
-		 VALUES ($1, $2, $3, $4, $5)
-		 ON CONFLICT (org_id, cluster)
-		 DO UPDATE SET report = $3, reported_at = $4, last_checked_at = $5`
-	default:
-		return fmt.Errorf("writing report with DB %v is not supported", storage.dbDriverType)
+	// Skip writing the report if it isn't newer than a report
+	// that is already in the database for the same cluster.
+	if oldLastChecked, exists := storage.clustersLastChecked[clusterName]; exists && !lastCheckedTime.After(oldLastChecked) {
+		return ErrOldReport
 	}
 
+	// Get the UPSERT query for writing a report into the database.
+	upsertQuery, err := storage.getReportUpsertQuery()
+	if err != nil {
+		return err
+	}
+
+	// Begin a new transaction.
 	tx, err := storage.connection.Begin()
 	if err != nil {
 		return err
@@ -461,8 +509,9 @@ func (storage DBStorage) WriteReportForCluster(
 	rows, err := tx.Query(
 		`SELECT last_checked_at FROM report WHERE org_id = $1 AND cluster = $2 AND last_checked_at > $3`,
 		orgID, clusterName, lastCheckedTime)
+	err = convertDBError(err)
 	if err != nil {
-		log.Error().Err(err).Msg("Unable to find most recent report in database")
+		log.Error().Err(err).Msg("Unable to look up the most recent report in database")
 		_ = tx.Rollback()
 		return err
 	}
@@ -472,7 +521,6 @@ func (storage DBStorage) WriteReportForCluster(
 	if rows.Next() {
 		log.Warn().Msgf("Database already contains report for organization %d and cluster name %s more recent than %v",
 			orgID, clusterName, lastCheckedTime)
-
 		_ = tx.Rollback()
 		return nil
 	}
@@ -486,6 +534,7 @@ func (storage DBStorage) WriteReportForCluster(
 		return err
 	}
 
+	storage.clustersLastChecked[clusterName] = lastCheckedTime
 	metrics.WrittenReports.Inc()
 	return tx.Commit()
 }
@@ -494,6 +543,7 @@ func (storage DBStorage) WriteReportForCluster(
 func (storage DBStorage) ReportsCount() (int, error) {
 	count := -1
 	err := storage.connection.QueryRow("SELECT count(*) FROM report").Scan(&count)
+	err = convertDBError(err)
 
 	return count, err
 }
@@ -562,14 +612,16 @@ func (storage DBStorage) LoadRuleContent(contentDir content.RuleContentDirectory
 	}
 
 	for _, rule := range contentDir.Rules {
-		_, err := tx.Exec(`INSERT INTO rule(module, "name", summary, reason, resolution, more_info)
+		_, err := tx.Exec(`
+				INSERT INTO rule(module, "name", summary, reason, resolution, more_info)
 				VALUES($1, $2, $3, $4, $5, $6)`,
 			rule.Plugin.PythonModule,
 			rule.Plugin.Name,
 			rule.Summary,
 			rule.Reason,
 			rule.Resolution,
-			rule.MoreInfo)
+			rule.MoreInfo,
+		)
 
 		if err != nil {
 			_ = tx.Rollback()

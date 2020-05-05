@@ -23,6 +23,7 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/prometheus/client_golang/prometheus"
 	prom_models "github.com/prometheus/client_model/go"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/RedHatInsights/insights-results-aggregator/metrics"
@@ -33,12 +34,16 @@ import (
 
 const (
 	testTopicName     = "ccx.ocp.results"
-	testCaseTimeLimit = 10 * time.Second
+	testCaseTimeLimit = 60 * time.Second
 )
 
 var (
 	testOrgWhiteList = mapset.NewSetWith(testdata.OrgID)
 )
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.WarnLevel)
+}
 
 func getCounterValue(counter prometheus.Counter) float64 {
 	pb := &prom_models.Metric{}
@@ -62,9 +67,10 @@ func getCounterVecValue(counterVec *prometheus.CounterVec, labels map[string]str
 // TestConsumedMessagesMetric tests that consumed messages metric works
 func TestConsumedMessagesMetric(t *testing.T) {
 	helpers.RunTestWithTimeout(t, func(t *testing.T) {
-		mockConsumer := helpers.MustGetMockKafkaConsumerWithExpectedMessages(
+		mockConsumer, closer := helpers.MustGetMockKafkaConsumerWithExpectedMessages(
 			t, testTopicName, testOrgWhiteList, []string{testdata.ConsumerMessage, testdata.ConsumerMessage},
 		)
+		defer closer()
 
 		assert.Equal(t, 0.0, getCounterValue(metrics.ConsumedMessages))
 
@@ -78,6 +84,11 @@ func TestConsumedMessagesMetric(t *testing.T) {
 
 func TestAPIRequestsMetrics(t *testing.T) {
 	helpers.RunTestWithTimeout(t, func(t *testing.T) {
+		// exposing storage creation out from assertapirequest makes
+		// this particular test much faster on postgres
+		mockStorage, closer := helpers.MustGetMockStorage(t, true)
+		defer closer()
+
 		// resetting since go runs tests in 1 process
 		metrics.APIRequests.Reset()
 
@@ -87,7 +98,7 @@ func TestAPIRequestsMetrics(t *testing.T) {
 			"endpoint": endpoint,
 		}))
 
-		helpers.AssertAPIRequest(t, nil, nil, &helpers.APIRequest{
+		helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
 			Method:       http.MethodGet,
 			Endpoint:     server.ReportEndpoint,
 			EndpointArgs: []interface{}{testdata.OrgID, testdata.BadClusterName},
@@ -110,6 +121,11 @@ func TestAPIRequestsMetrics(t *testing.T) {
 
 func TestApiResponseStatusCodesMetric_StatusOK(t *testing.T) {
 	helpers.RunTestWithTimeout(t, func(t *testing.T) {
+		// exposing storage creation out from assertapirequest makes
+		// this particular test much faster on postgres
+		mockStorage, closer := helpers.MustGetMockStorage(t, true)
+		defer closer()
+
 		metrics.APIResponseStatusCodes.Reset()
 
 		assert.Equal(t, 0.0, getCounterVecValue(metrics.APIResponseStatusCodes, map[string]string{
@@ -117,7 +133,7 @@ func TestApiResponseStatusCodesMetric_StatusOK(t *testing.T) {
 		}))
 
 		for i := 0; i < 15; i++ {
-			helpers.AssertAPIRequest(t, nil, nil, &helpers.APIRequest{
+			helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
 				Method:   http.MethodGet,
 				Endpoint: server.MainEndpoint,
 			}, &helpers.APIResponse{
@@ -134,13 +150,18 @@ func TestApiResponseStatusCodesMetric_StatusOK(t *testing.T) {
 
 func TestApiResponseStatusCodesMetric_StatusBadRequest(t *testing.T) {
 	helpers.RunTestWithTimeout(t, func(t *testing.T) {
+		// exposing storage creation out from assertapirequest makes
+		// this particular test much faster on postgres
+		mockStorage, closer := helpers.MustGetMockStorage(t, true)
+		defer closer()
+
 		metrics.APIResponseStatusCodes.Reset()
 
 		assert.Equal(t, 0.0, getCounterVecValue(metrics.APIResponseStatusCodes, map[string]string{
 			"status_code": fmt.Sprint(http.StatusBadRequest),
 		}))
 
-		helpers.AssertAPIRequest(t, nil, nil, &helpers.APIRequest{
+		helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
 			Method:       http.MethodGet,
 			Endpoint:     server.ReportEndpoint,
 			EndpointArgs: []interface{}{testdata.OrgID, testdata.BadClusterName},
