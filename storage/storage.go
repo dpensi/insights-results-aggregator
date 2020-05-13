@@ -83,6 +83,26 @@ type Storage interface {
 	GetContentForRules(rules types.ReportRules) ([]types.RuleContentResponse, error)
 	DeleteReportsForOrg(orgID types.OrgID) error
 	DeleteReportsForCluster(clusterName types.ClusterName) error
+	ToggleRuleForCluster(
+		clusterID types.ClusterName,
+		ruleID types.RuleID,
+		userID types.UserID,
+		ruleToggle RuleToggle,
+	) error
+	ListDisabledRulesForCluster(
+		clusterID types.ClusterName,
+		userID types.UserID,
+	) ([]types.DisabledRuleResponse, error)
+	GetFromClusterRuleToggle(
+		types.ClusterName,
+		types.RuleID,
+		types.UserID,
+	) (*ClusterRuleToggle, error)
+	DeleteFromRuleClusterToggle(
+		clusterID types.ClusterName,
+		ruleID types.RuleID,
+		userID types.UserID,
+	) error
 	LoadRuleContent(contentDir content.RuleContentDirectory) error
 	GetRuleByID(ruleID types.RuleID) (*types.Rule, error)
 	GetOrgIDByClusterID(cluster types.ClusterName) (types.OrgID, error)
@@ -182,16 +202,18 @@ func initAndGetDriver(configuration Configuration) (driverType DBDriver, driverN
 	return
 }
 
-// Init method is doing initialization like creating tables in underlying database
-func (storage DBStorage) Init() error {
-	// Perform all defined migrations on the database.
+// MigrateToLatest migrates the database to the latest available
+// migration version. This must be done before an Init() call.
+func (storage DBStorage) MigrateToLatest() error {
 	if err := migration.InitInfoTable(storage.connection); err != nil {
 		return err
 	}
-	if err := migration.SetDBVersion(storage.connection, migration.GetMaxVersion()); err != nil {
-		return err
-	}
+	return migration.SetDBVersion(storage.connection, migration.GetMaxVersion())
+}
 
+// Init performs all database initialization
+// tasks necessary for futher service operation.
+func (storage DBStorage) Init() error {
 	// Read clusterName:LastChecked dictionary from DB.
 	rows, err := storage.connection.Query("SELECT cluster, last_checked_at FROM report")
 	if err != nil {
@@ -412,12 +434,17 @@ func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]ty
 		r.resolution,
 		rek.publish_date,
 		rek.impact,
-		rek.likelihood
+		rek.likelihood,
+		COALESCE(crt.disabled, 0) as disabled
 	FROM
 		rule r
 	INNER JOIN
 		rule_error_key rek ON r.module = rek.rule_module
+	LEFT JOIN
+		cluster_rule_toggle crt ON rek.rule_module = crt.rule_id
 	WHERE %v
+	ORDER BY
+		disabled ASC
 	`
 
 	whereInStatement := constructWhereClauseForContent(reportRules)
@@ -444,6 +471,7 @@ func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]ty
 			&rule.CreatedAt,
 			&impact,
 			&likelihood,
+			&rule.Disabled,
 		)
 		if err != nil {
 			log.Error().Err(err).Msg("SQL error while retrieving content for rule")

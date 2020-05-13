@@ -157,6 +157,8 @@ func TestHttpServer_readReportForCluster_getContentForRule_DBError(t *testing.T)
 	mockStorage := storage.NewFromConnection(connection, storage.DBDriverSQLite3)
 	defer helpers.MustCloseStorage(t, mockStorage)
 
+	helpers.FailOnError(t, mockStorage.MigrateToLatest())
+
 	err = mockStorage.Init()
 	helpers.FailOnError(t, err)
 
@@ -245,6 +247,75 @@ func TestReadReportWithContent(t *testing.T) {
 	}, &helpers.APIResponse{
 		StatusCode:  http.StatusOK,
 		Body:        testdata.Report3RulesExpectedResponse,
+		BodyChecker: assertReportResponsesEqual,
+	})
+}
+
+// TestReadReportDisableRule reads a report, disables the first rule, fetches again,
+// expecting the rule to be last and disabled, re-enables it and expects regular
+// response with Rule1 first again
+func TestReadReportDisableRule(t *testing.T) {
+	mockStorage, closer := helpers.MustGetMockStorage(t, true)
+	defer closer()
+
+	err := mockStorage.WriteReportForCluster(
+		testdata.OrgID,
+		testdata.ClusterName,
+		testdata.Report2Rules,
+		testdata.LastCheckedAt,
+	)
+	helpers.FailOnError(t, err)
+
+	err = mockStorage.LoadRuleContent(testdata.RuleContent3Rules)
+	helpers.FailOnError(t, err)
+
+	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
+		Method:       http.MethodGet,
+		Endpoint:     server.ReportEndpoint,
+		EndpointArgs: []interface{}{testdata.OrgID, testdata.ClusterName},
+	}, &helpers.APIResponse{
+		StatusCode:  http.StatusOK,
+		Body:        testdata.Report2RulesEnabledRule1ExpectedResponse,
+		BodyChecker: assertReportResponsesEqual,
+	})
+
+	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
+		Method:       http.MethodPut,
+		Endpoint:     server.DisableRuleForClusterEndpoint,
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
+		UserID:       testdata.UserID,
+	}, &helpers.APIResponse{
+		StatusCode: http.StatusOK,
+		Body:       `{"status": "ok"}`,
+	})
+
+	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
+		Method:       http.MethodGet,
+		Endpoint:     server.ReportEndpoint,
+		EndpointArgs: []interface{}{testdata.OrgID, testdata.ClusterName},
+	}, &helpers.APIResponse{
+		StatusCode:  http.StatusOK,
+		Body:        testdata.Report2RulesDisabledRule1ExpectedResponse,
+		BodyChecker: assertReportResponsesEqual,
+	})
+
+	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
+		Method:       http.MethodPut,
+		Endpoint:     server.EnableRuleForClusterEndpoint,
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
+		UserID:       testdata.UserID,
+	}, &helpers.APIResponse{
+		StatusCode: http.StatusOK,
+		Body:       `{"status": "ok"}`,
+	})
+
+	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
+		Method:       http.MethodGet,
+		Endpoint:     server.ReportEndpoint,
+		EndpointArgs: []interface{}{testdata.OrgID, testdata.ClusterName},
+	}, &helpers.APIResponse{
+		StatusCode:  http.StatusOK,
+		Body:        testdata.Report2RulesEnabledRule1ExpectedResponse,
 		BodyChecker: assertReportResponsesEqual,
 	})
 }

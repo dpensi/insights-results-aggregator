@@ -15,8 +15,6 @@
 
 threshold=45
 
-RED=$(tput setaf 1)
-GREEN=$(tput setaf 2)
 BLUE=$(tput setaf 4)
 RED_BG=$(tput setab 1)
 GREEN_BG=$(tput setab 2)
@@ -28,7 +26,7 @@ if [[ $* == *verbose* ]]; then
     VERBOSE=true
 fi
 
-go get -u github.com/droptheplot/abcgo
+GO111MODULE=off go get -u github.com/droptheplot/abcgo
 
 if [ "$VERBOSE" = true ]; then
     echo -e "${BLUE}All ABC metrics${NC}:"
