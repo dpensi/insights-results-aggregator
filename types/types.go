@@ -33,6 +33,9 @@ type ClusterReport string
 // TODO: need to be improved
 type Timestamp string
 
+// UserVote is a type for user's vote
+type UserVote int
+
 // RuleOnReport represents a single (hit) rule of the string encoded report
 type RuleOnReport struct {
 	Module   string      `json:"component"`
@@ -72,6 +75,7 @@ type RuleContentResponse struct {
 	RiskOfChange int         `json:"risk_of_change"`
 	RuleModule   string      `json:"rule_id"`
 	TemplateData interface{} `json:"extra_data"`
+	UserVote     UserVote    `json:"user_vote"`
 	Disabled     bool        `json:"disabled"`
 }
 
@@ -114,3 +118,27 @@ type RuleErrorKey struct {
 	Active      bool      `json:"active"`
 	Generic     string    `json:"generic"`
 }
+
+// KafkaOffset type for kafka offset
+type KafkaOffset int64
+
+// DBDriver type for db driver enum
+type DBDriver int
+
+const (
+	// DBDriverSQLite3 shows that db driver is sqlite
+	DBDriverSQLite3 DBDriver = iota
+	// DBDriverPostgres shows that db driver is postgres
+	DBDriverPostgres
+	// DBDriverGeneral general sql(used for mock now)
+	DBDriverGeneral
+)
+
+const (
+	// UserVoteDislike shows user's dislike
+	UserVoteDislike UserVote = -1
+	// UserVoteNone shows no vote from user
+	UserVoteNone UserVote = 0
+	// UserVoteLike shows user's like
+	UserVoteLike UserVote = 1
+)

@@ -59,9 +59,14 @@ func (*NoopStorage) ReadReportForClusterByClusterName(
 	return "", "", nil
 }
 
+// GetLatestKafkaOffset noop
+func (*NoopStorage) GetLatestKafkaOffset() (types.KafkaOffset, error) {
+	return 0, nil
+}
+
 // WriteReportForCluster noop
 func (*NoopStorage) WriteReportForCluster(
-	_ types.OrgID, _ types.ClusterName, _ types.ClusterReport, _ time.Time,
+	_ types.OrgID, _ types.ClusterName, _ types.ClusterReport, _ time.Time, _ types.KafkaOffset,
 ) error {
 	return nil
 }
@@ -72,7 +77,7 @@ func (*NoopStorage) ReportsCount() (int, error) {
 }
 
 // VoteOnRule noop
-func (*NoopStorage) VoteOnRule(_ types.ClusterName, _ types.RuleID, _ types.UserID, _ UserVote) error {
+func (*NoopStorage) VoteOnRule(_ types.ClusterName, _ types.RuleID, _ types.UserID, _ types.UserVote) error {
 	return nil
 }
 
@@ -170,5 +175,14 @@ func (*NoopStorage) GetFromClusterRuleToggle(
 	types.RuleID,
 	types.UserID,
 ) (*ClusterRuleToggle, error) {
+	return nil, nil
+}
+
+// GetUserFeedbackOnRules noop
+func (*NoopStorage) GetUserFeedbackOnRules(
+	types.ClusterName,
+	[]types.RuleContentResponse,
+	types.UserID,
+) (map[types.RuleID]types.UserVote, error) {
 	return nil, nil
 }

@@ -61,6 +61,7 @@ const (
 	Rule1MoreInfo    = "rule 1 more info"
 	Rule2MoreInfo    = "rule 2 more info"
 	Rule3MoreInfo    = "rule 3 more info"
+	KafkaOffset      = types.KafkaOffset(1)
 )
 
 var (
@@ -167,6 +168,18 @@ var (
 					},
 				},
 			},
+		},
+	}
+
+	RuleContentResponses = []types.RuleContentResponse{
+		types.RuleContentResponse{
+			RuleModule: string(Rule1ID),
+		},
+		types.RuleContentResponse{
+			RuleModule: string(Rule2ID),
+		},
+		types.RuleContentResponse{
+			RuleModule: string(Rule3ID),
 		},
 	}
 
