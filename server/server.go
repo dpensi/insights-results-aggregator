@@ -47,6 +47,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	// we just have to import this package in order to expose pprof interface in debug mode
 	// disable "G108 (CWE-): Profiling endpoint is automatically exposed on /debug/pprof"
 	// #nosec G108
@@ -152,7 +153,6 @@ func (server *HTTPServer) getContentForRules(
 
 // getUserVoteForRules returns user votes for defined list of report's IDs
 func (server *HTTPServer) getUserVoteForRules(
-	writer http.ResponseWriter,
 	feedbacks map[types.RuleID]types.UserVote,
 	rulesContent []types.RuleContentResponse,
 ) []types.RuleContentResponse {
@@ -179,7 +179,7 @@ func (server *HTTPServer) readReportForCluster(writer http.ResponseWriter, reque
 		return
 	}
 
-	userID, err := server.readUserID(err, request, writer)
+	userID, err := server.readUserID(request, writer)
 	if err != nil {
 		// everything has been handled already
 		return
@@ -206,7 +206,7 @@ func (server *HTTPServer) readReportForCluster(writer http.ResponseWriter, reque
 		return
 	}
 
-	rulesContent = server.getUserVoteForRules(writer, feedbacks, rulesContent)
+	rulesContent = server.getUserVoteForRules(feedbacks, rulesContent)
 
 	// -1 as count in response means there are no rules for this cluster
 	// as opposed to no rules hit for the cluster
@@ -348,6 +348,33 @@ func (server *HTTPServer) toggleRuleForCluster(writer http.ResponseWriter, reque
 	if err != nil {
 		log.Error().Err(err).Msg(responseDataError)
 	}
+}
+
+// getRuleGroups serves as a proxy to the insights-content-service redirecting the request
+// if the service is alive
+func (server *HTTPServer) getRuleGroups(writer http.ResponseWriter, request *http.Request) {
+	contentServiceURL, err := url.Parse(server.Config.ContentServiceURL)
+
+	if err != nil {
+		log.Error().Err(err).Msg("Error during Content Service URL parsing")
+		handleServerError(writer, err)
+		return
+	}
+
+	// test if service is alive
+	_, err = http.Get(contentServiceURL.String())
+	if err != nil {
+		log.Error().Err(err).Msg("Content service unavailable")
+
+		if _, ok := err.(*url.Error); ok {
+			err = &ContentServiceUnavailableError{}
+		}
+
+		handleServerError(writer, err)
+		return
+	}
+
+	http.Redirect(writer, request, contentServiceURL.String()+RuleGroupsEndpoint, 302)
 }
 
 // deleteRuleForClusterToggle is debug endpoint for deleting the record in the rule_cluster_toggle table
@@ -503,7 +530,8 @@ func (server *HTTPServer) deleteRuleErrorKey(writer http.ResponseWriter, request
 	}
 }
 
-func (server *HTTPServer) readUserID(err error, request *http.Request, writer http.ResponseWriter) (types.UserID, error) {
+// readUserID tries to retrieve user ID from request. If any error occurs, error response is send back to client.
+func (server *HTTPServer) readUserID(request *http.Request, writer http.ResponseWriter) (types.UserID, error) {
 	userID, err := server.GetCurrentUserID(request)
 	if err != nil {
 		const message = "Unable to get user id"
@@ -665,6 +693,7 @@ func (server *HTTPServer) addEndpointsToRouter(router *mux.Router) {
 	router.HandleFunc(apiPrefix+ClustersForOrganizationEndpoint, server.listOfClustersForOrganization).Methods(http.MethodGet)
 	router.HandleFunc(apiPrefix+DisableRuleForClusterEndpoint, server.disableRuleForCluster).Methods(http.MethodPut, http.MethodOptions)
 	router.HandleFunc(apiPrefix+EnableRuleForClusterEndpoint, server.enableRuleForCluster).Methods(http.MethodPut, http.MethodOptions)
+	router.HandleFunc(apiPrefix+RuleGroupsEndpoint, server.getRuleGroups).Methods(http.MethodGet)
 
 	// Prometheus metrics
 	router.Handle(apiPrefix+MetricsEndpoint, promhttp.Handler()).Methods(http.MethodGet)

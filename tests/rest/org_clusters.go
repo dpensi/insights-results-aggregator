@@ -51,13 +51,6 @@ func readClustersFromResponse(f *frisby.Frisby) ClustersResponse {
 	return response
 }
 
-// checkOkStatusResponse tests whether the response (JSON) contains status attribute set to 'ok'
-func checkOkStatusResponse(f *frisby.Frisby, response ClustersResponse) {
-	if response.Status != "ok" {
-		f.AddError(fmt.Sprintf("Expected status is 'ok', but got '%s' instead", response.Status))
-	}
-}
-
 // checkEmptyListOfClusters tests whether list of clusters returned from the server is empty
 func checkEmptyListOfClusters(f *frisby.Frisby, response ClustersResponse) {
 	if len(response.Clusters) != 0 {
@@ -132,7 +125,7 @@ func checkClustersEndpointWrongMethods() {
 	for _, knownOrganization := range knownOrganizations {
 		orgID := strconv.Itoa(knownOrganization)
 		url := apiURL + "organizations/" + orgID + "/clusters"
-		checkGetEndpointByOtherMethods(url)
+		checkGetEndpointByOtherMethods(url, false)
 	}
 }
 
