@@ -25,6 +25,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RedHatInsights/insights-results-aggregator/broker"
+	"github.com/RedHatInsights/insights-results-aggregator/producer"
 	"github.com/RedHatInsights/insights-results-aggregator/storage"
 	"github.com/RedHatInsights/insights-results-aggregator/types"
 )
@@ -33,7 +34,7 @@ import (
 type Consumer interface {
 	Serve()
 	Close() error
-	ProcessMessage(msg *sarama.ConsumerMessage) error
+	ProcessMessage(msg *sarama.ConsumerMessage) (types.RequestID, error)
 }
 
 // KafkaConsumer in an implementation of Consumer interface
@@ -57,6 +58,8 @@ type KafkaConsumer struct {
 	numberOfSuccessfullyConsumedMessages uint64
 	numberOfErrorsConsumingMessages      uint64
 	ready                                chan bool
+	cancel                               context.CancelFunc
+	payloadTrackerProducer               *producer.KafkaProducer
 }
 
 // DefaultSaramaConfig is a config which will be used by default
@@ -85,6 +88,12 @@ func NewWithSaramaConfig(
 		return nil, err
 	}
 
+	payloadTrackerProducer, err := producer.New(brokerCfg)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to construct producer")
+		return nil, err
+	}
+
 	consumer := &KafkaConsumer{
 		Configuration:                        brokerCfg,
 		ConsumerGroup:                        consumerGroup,
@@ -92,6 +101,7 @@ func NewWithSaramaConfig(
 		numberOfSuccessfullyConsumedMessages: 0,
 		numberOfErrorsConsumingMessages:      0,
 		ready:                                make(chan bool),
+		payloadTrackerProducer:               payloadTrackerProducer,
 	}
 
 	return consumer, nil
@@ -100,6 +110,7 @@ func NewWithSaramaConfig(
 // Serve starts listening for messages and processing them. It blocks current thread.
 func (consumer *KafkaConsumer) Serve() {
 	ctx, cancel := context.WithCancel(context.Background())
+	consumer.cancel = cancel
 
 	go func() {
 		for {
@@ -180,9 +191,19 @@ func (consumer *KafkaConsumer) ConsumeClaim(session sarama.ConsumerGroupSession,
 
 // Close method closes all resources used by consumer
 func (consumer *KafkaConsumer) Close() error {
+	if consumer.cancel != nil {
+		consumer.cancel()
+	}
+
 	if consumer.ConsumerGroup != nil {
 		if err := consumer.ConsumerGroup.Close(); err != nil {
-			log.Error().Err(err).Msg("Unable to close consumer group")
+			log.Error().Err(err).Msg("unable to close consumer group")
+		}
+	}
+
+	if consumer.payloadTrackerProducer != nil {
+		if err := consumer.payloadTrackerProducer.Close(); err != nil {
+			log.Error().Err(err).Msg("unable to close payload tracker Kafka producer")
 		}
 	}
 

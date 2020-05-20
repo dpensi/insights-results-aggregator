@@ -36,6 +36,10 @@ type Timestamp string
 // UserVote is a type for user's vote
 type UserVote int
 
+// RequestID is used to store the request ID supplied in input Kafka records as
+// a unique identifier of payloads. Empty string represents a missing request ID.
+type RequestID string
+
 // RuleOnReport represents a single (hit) rule of the string encoded report
 type RuleOnReport struct {
 	Module   string      `json:"component"`
@@ -75,6 +79,7 @@ type RuleContentResponse struct {
 	RiskOfChange int         `json:"risk_of_change"`
 	RuleModule   string      `json:"rule_id"`
 	TemplateData interface{} `json:"extra_data"`
+	Tags         []string    `json:"tags"`
 	UserVote     UserVote    `json:"user_vote"`
 	Disabled     bool        `json:"disabled"`
 }
