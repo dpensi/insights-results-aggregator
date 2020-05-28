@@ -80,7 +80,11 @@ type Storage interface {
 	GetUserFeedbackOnRule(
 		clusterID types.ClusterName, ruleID types.RuleID, userID types.UserID,
 	) (*UserFeedbackOnRule, error)
-	GetContentForRules(rules types.ReportRules) ([]types.RuleContentResponse, error)
+	GetContentForRules(
+		rules types.ReportRules,
+		userID types.UserID,
+		clusterName types.ClusterName,
+	) ([]types.RuleContentResponse, error)
 	DeleteReportsForOrg(orgID types.OrgID) error
 	DeleteReportsForCluster(clusterName types.ClusterName) error
 	ToggleRuleForCluster(
@@ -116,6 +120,7 @@ type Storage interface {
 		rulesContent []types.RuleContentResponse,
 		userID types.UserID,
 	) (map[types.RuleID]types.UserVote, error)
+	GetRuleWithContent(ruleID types.RuleID, ruleErrorKey types.ErrorKey) (*types.RuleWithContent, error)
 }
 
 // DBStorage is an implementation of Storage interface that use selected SQL like database
@@ -421,8 +426,25 @@ func getExtraDataFromReportRules(rules []types.RuleContentResponse, reportRules 
 	return rules
 }
 
+func calculateTotalRisk(impact, likelihood int) int {
+	return (impact + likelihood) / 2
+}
+
+func commaSeparatedStrToTags(str string) []string {
+	str = strings.TrimSpace(str)
+	if len(str) == 0 {
+		return []string{}
+	}
+
+	return strings.Split(str, ",")
+}
+
 // GetContentForRules retrieves content for rules that were hit in the report
-func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]types.RuleContentResponse, error) {
+func (storage DBStorage) GetContentForRules(
+	reportRules types.ReportRules,
+	userID types.UserID,
+	clusterName types.ClusterName,
+) ([]types.RuleContentResponse, error) {
 	rules := make([]types.RuleContentResponse, 0)
 
 	query := `
@@ -441,9 +463,13 @@ func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]ty
 	FROM
 		rule r
 	INNER JOIN
-		rule_error_key rek ON r.module = rek.rule_module
+		rule_error_key rek
+			ON r.module = rek.rule_module
 	LEFT JOIN
-		cluster_rule_toggle crt ON rek.rule_module = crt.rule_id
+		cluster_rule_toggle crt
+			ON rek.rule_module = crt.rule_id
+			AND crt.cluster_id = $1
+			AND crt.user_id = $2
 	WHERE %v
 	ORDER BY
 		disabled ASC
@@ -452,7 +478,7 @@ func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]ty
 	whereInStatement := constructWhereClauseForContent(reportRules)
 	query = fmt.Sprintf(query, whereInStatement)
 
-	rows, err := storage.connection.Query(query)
+	rows, err := storage.connection.Query(query, clusterName, userID)
 
 	if err != nil {
 		return rules, err
@@ -482,10 +508,10 @@ func (storage DBStorage) GetContentForRules(reportRules types.ReportRules) ([]ty
 			continue
 		}
 
-		rule.TotalRisk = (impact + likelihood) / 2
+		rule.TotalRisk = calculateTotalRisk(impact, likelihood)
 
 		// quick hack for rule tags
-		rule.Tags = strings.Split(tags, ",")
+		rule.Tags = commaSeparatedStrToTags(tags)
 
 		rules = append(rules, rule)
 	}

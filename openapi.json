@@ -3,7 +3,8 @@
   "info": {
     "title": "Insights Results Aggregator",
     "description": "Aggregation service for the results of running Insights rules.",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "contact": {}
   },
   "paths": {
     "/openapi.json": {
@@ -44,7 +45,8 @@
               }
             }
           }
-        }
+        },
+        "parameters": []
       }
     },
     "/metrics": {
@@ -118,7 +120,8 @@
         },
         "tags": [
           "debug"
-        ]
+        ],
+        "parameters": []
       }
     },
     "/organizations/{orgId}/clusters": {
@@ -236,7 +239,8 @@
                               },
                               "details": {
                                 "type": "string",
-                                "description": "Details of the rule - templates rendered on frontend."
+                                "description": "Details of the rule - templates rendered on frontend.",
+                                "example": "State of operator: {{=condition}}"
                               },
                               "reason": {
                                 "type": "string",
@@ -273,6 +277,13 @@
                                   4
                                 ]
                               },
+                              "extra_data": {
+                                "type": "object",
+                                "description": "Used as templating data for other content (details, resolution, etc.), has varying structure depending on the rules in the report.",
+                                "example": {
+                                  "condition": "Degraded"
+                                }
+                              },
                               "tags": {
                                 "type": "array",
                                 "items": {
@@ -288,6 +299,15 @@
                                   0,
                                   1
                                 ]
+                              },
+                              "disabled": {
+                                "type": "boolean",
+                                "description": "If this rule result disabled or not. This field can be used in the UI to show only specific set of rules results."
+                              },
+                              "rule_id": {
+                                "type": "string",
+                                "description": "ID of a rule.",
+                                "example": "some.python.module"
                               }
                             }
                           }
@@ -772,6 +792,39 @@
           "rule",
           "debug"
         ]
+      },
+      "get": {
+        "summary": "getRule returns rule with content for provided rule ID and rule error key",
+        "description": "",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "errorKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "getRule",
+        "responses": {
+          "default": {
+            "description": "Default response"
+          }
+        },
+        "tags": [
+          "rule",
+          "prod"
+        ]
       }
     },
     "/clusters/{clusterId}/rules/{ruleId}/disable": {
@@ -874,6 +927,12 @@
         ]
       }
     }
+  },
+  "security": [],
+  "servers": [],
+  "components": {
+    "links": {},
+    "callbacks": {},
+    "schemas": {}
   }
 }
-

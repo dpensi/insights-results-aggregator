@@ -29,6 +29,7 @@ const (
 	OrgID            = types.OrgID(1)
 	ClusterName      = types.ClusterName("84f7eedc-0dd8-49cd-9d4d-f6646df3a5bc")
 	UserID           = types.UserID("1")
+	User2ID          = types.UserID("2")
 	BadClusterName   = types.ClusterName("aaaa")
 	Rule1ID          = types.RuleID("test.rule1")
 	BadRuleID        = types.RuleID("rule id with spaces")
@@ -73,6 +74,68 @@ var (
 		Reason:     Rule1Reason,
 		Resolution: Rule1Resolution,
 		MoreInfo:   Rule1MoreInfo,
+	}
+	Rule2 = types.Rule{
+		Module:     Rule2ID,
+		Name:       Rule2Name,
+		Summary:    Rule2Summary,
+		Reason:     Rule2Reason,
+		Resolution: Rule2Resolution,
+		MoreInfo:   Rule2MoreInfo,
+	}
+	RuleErrorKey1 = types.RuleErrorKey{
+		ErrorKey:    "ek1",
+		RuleModule:  Rule1ID,
+		Condition:   "condition1",
+		Description: "description1",
+		Impact:      1,
+		Likelihood:  2,
+		PublishDate: LastCheckedAt,
+		Active:      false,
+		Generic:     "generic1",
+	}
+	RuleErrorKey2 = types.RuleErrorKey{
+		ErrorKey:    "ek2",
+		RuleModule:  Rule2ID,
+		Condition:   "condition2",
+		Description: "description2",
+		Impact:      2,
+		Likelihood:  3,
+		PublishDate: LastCheckedAt,
+		Active:      true,
+		Generic:     "generic2",
+	}
+	RuleWithContent1 = types.RuleWithContent{
+		Module:      Rule1.Module,
+		Name:        Rule1.Name,
+		Summary:     Rule1.Summary,
+		Reason:      Rule1.Reason,
+		Resolution:  Rule1.Resolution,
+		MoreInfo:    Rule1.MoreInfo,
+		ErrorKey:    RuleErrorKey1.ErrorKey,
+		Condition:   RuleErrorKey1.Condition,
+		Description: RuleErrorKey1.Description,
+		TotalRisk:   (RuleErrorKey1.Impact + RuleErrorKey1.Likelihood) / 2,
+		PublishDate: RuleErrorKey1.PublishDate,
+		Active:      RuleErrorKey1.Active,
+		Generic:     RuleErrorKey1.Generic,
+		Tags:        []string{},
+	}
+	RuleWithContent2 = types.RuleWithContent{
+		Module:      Rule2.Module,
+		Name:        Rule2.Name,
+		Summary:     Rule2.Summary,
+		Reason:      Rule2.Reason,
+		Resolution:  Rule2.Resolution,
+		MoreInfo:    Rule2.MoreInfo,
+		ErrorKey:    RuleErrorKey2.ErrorKey,
+		Condition:   RuleErrorKey2.Condition,
+		Description: RuleErrorKey2.Description,
+		TotalRisk:   (RuleErrorKey2.Impact + RuleErrorKey2.Likelihood) / 2,
+		PublishDate: RuleErrorKey2.PublishDate,
+		Active:      RuleErrorKey2.Active,
+		Generic:     RuleErrorKey2.Generic,
+		Tags:        []string{},
 	}
 	ConsumerReport = `{
 		"fingerprints": [],
@@ -268,7 +331,53 @@ var (
 }
 `
 
-	Report2RulesEnabledRule1ExpectedResponse = `
+	Report2RulesDisabledExpectedResponse = `
+{
+	"report": {
+		"meta": {
+			"count": 2,
+			"last_checked_at": "` + LastCheckedAt.Format(time.RFC3339) + `"
+		},
+		"data": [
+			{
+				"rule_id": "` + string(Rule1ID) + `",
+				"description": "` + Rule1Description + `",
+				"details": "` + Rule1Details + `",
+				"reason": "` + Rule1Reason + `",
+				"resolution": "` + Rule1Resolution + `",
+				"created_at": "` + Rule1CreatedAt + `",
+				"total_risk": 3,
+				"risk_of_change": 0,
+				"extra_data": null,
+				"tags": [
+					"tag1",
+					"tag2"
+				],
+				"disabled": true
+			},
+			{
+				"rule_id": "` + string(Rule2ID) + `",
+				"description": "` + Rule2Description + `",
+				"details": "` + Rule2Details + `",
+				"reason": "` + Rule2Reason + `",
+				"resolution": "` + Rule2Resolution + `",
+				"created_at": "` + Rule2CreatedAt + `",
+				"total_risk": 4,
+				"risk_of_change": 0,
+				"extra_data": null,
+				"tags": [
+					"tag1",
+					"tag2"
+				],
+				"disabled": true
+			}
+		]
+	},
+	"status": "ok"
+}
+`
+
+	Report2RulesEnabledRulesExpectedResponse = `
 {
 	"report": {
 		"meta": {
