@@ -17,6 +17,7 @@ limitations under the License.
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -83,8 +84,11 @@ func constructURLResetVoteForRule(clusterID string, ruleID string) string {
 	return fmt.Sprintf("%sclusters/%s/rules/%s/reset_vote", apiURL, clusterID, ruleID)
 }
 
-func checkOkStatus(url string, message string) {
-	f := frisby.Create(message).Put(url)
+func constructURLGetVoteForRule(clusterID string, ruleID string) string {
+	return fmt.Sprintf("%sclusters/%s/rules/%s/get_vote/", apiURL, clusterID, ruleID)
+}
+
+func checkOkStatus(f *frisby.Frisby) {
 	setAuthHeader(f)
 	f.Send()
 	f.ExpectStatus(200)
@@ -95,8 +99,17 @@ func checkOkStatus(url string, message string) {
 	}
 }
 
-func checkInvalidUUIDFormat(url string, message string) {
+func checkOkStatusUserVote(url string, message string) {
 	f := frisby.Create(message).Put(url)
+	checkOkStatus(f)
+}
+
+func checkOkStatusGetVote(url string, message string) {
+	f := frisby.Create(message).Get(url)
+	checkOkStatus(f)
+}
+
+func checkInvalidUUIDFormat(f *frisby.Frisby) {
 	setAuthHeader(f)
 	f.Send()
 	f.ExpectStatus(400)
@@ -113,8 +126,17 @@ func checkInvalidUUIDFormat(url string, message string) {
 	f.PrintReport()
 }
 
-func checkItemNotFound(url string, message string) {
+func checkInvalidUUIDFormatGet(url string, message string) {
+	f := frisby.Create(message).Get(url)
+	checkInvalidUUIDFormat(f)
+}
+
+func checkInvalidUUIDFormatPut(url string, message string) {
 	f := frisby.Create(message).Put(url)
+	checkInvalidUUIDFormat(f)
+}
+
+func checkItemNotFound(f *frisby.Frisby) {
 	setAuthHeader(f)
 	f.Send()
 	f.ExpectStatus(404)
@@ -131,20 +153,30 @@ func checkItemNotFound(url string, message string) {
 	f.PrintReport()
 }
 
+func checkItemNotFoundGet(url string, message string) {
+	f := frisby.Create(message).Get(url)
+	checkItemNotFound(f)
+}
+
+func checkItemNotFoundPut(url string, message string) {
+	f := frisby.Create(message).Put(url)
+	checkItemNotFound(f)
+}
+
 // reproducerForIssue385 checks whether the issue https://github.com/RedHatInsights/insights-results-aggregator/issues/385 has been fixed
 func reproducerForIssue385() {
 	const message = "Reproducer for issue #385 (https://github.com/RedHatInsights/insights-results-aggregator/issues/385)"
 	// vote
 	url := constructURLVoteForRule(improperClusterID, anyRule)
-	checkInvalidUUIDFormat(url, message)
+	checkInvalidUUIDFormatPut(url, message)
 
 	// unvote
 	url = constructURLUnvoteForRule(improperClusterID, anyRule)
-	checkInvalidUUIDFormat(url, message)
+	checkInvalidUUIDFormatPut(url, message)
 
 	// reset vote
 	url = constructURLResetVoteForRule(improperClusterID, anyRule)
-	checkInvalidUUIDFormat(url, message)
+	checkInvalidUUIDFormatPut(url, message)
 }
 
 // test the specified rule vote/unvote/reset REST API endpoint by using selected checker function
@@ -161,124 +193,259 @@ func testRuleVoteAPIendpoint(clusters []string, rules []string, message string, 
 func checkLikeKnownRuleForKnownCluster() {
 	testRuleVoteAPIendpoint(knownClustersForOrganization1, knownRules,
 		"Test whether 'like' REST API endpoint works correctly for known rule and known cluster",
-		constructURLVoteForRule, checkOkStatus)
+		constructURLVoteForRule, checkOkStatusUserVote)
 }
 
 // checkDislikeKnownRuleForKnownCluster tests whether 'dislike' REST API endpoint works correctly for known rule and known cluster
 func checkDislikeKnownRuleForKnownCluster() {
 	testRuleVoteAPIendpoint(knownClustersForOrganization1, knownRules,
 		"Test whether 'dislike' REST API endpoint works correctly for known rule and known cluster",
-		constructURLUnvoteForRule, checkOkStatus)
+		constructURLUnvoteForRule, checkOkStatusUserVote)
 }
 
 // checkResetKnownRuleForKnownCluster tests whether 'reset vote' REST API endpoint works correctly for known rule and known cluster
 func checkResetKnownRuleForKnownCluster() {
 	testRuleVoteAPIendpoint(knownClustersForOrganization1, knownRules,
 		"Test whether 'reset vote' REST API endpoint works correctly for known rule and known cluster",
-		constructURLResetVoteForRule, checkOkStatus)
+		constructURLResetVoteForRule, checkOkStatusUserVote)
 }
 
 // checkLikeKnownRuleForUnknownCluster tests whether 'like' REST API endpoint works correctly for unknown rule and unknown cluster
 func checkLikeKnownRuleForUnknownCluster() {
 	testRuleVoteAPIendpoint(unknownClusters, knownRules,
 		"Test whether 'like' REST API endpoint works correctly for known rule and unknown cluster",
-		constructURLVoteForRule, checkItemNotFound)
+		constructURLVoteForRule, checkItemNotFoundPut)
 }
 
 // checkDislikeKnownRuleForUnknownCluster tests whether 'dislike' REST API endpoint works correctly for unknown rule and unknown cluster
 func checkDislikeKnownRuleForUnknownCluster() {
 	testRuleVoteAPIendpoint(unknownClusters, knownRules,
 		"Test whether 'dislike' REST API endpoint works correctly for known rule and unknown cluster",
-		constructURLUnvoteForRule, checkItemNotFound)
+		constructURLUnvoteForRule, checkItemNotFoundPut)
 }
 
 // checkResetKnownRuleForUnknownCluster tests whether 'reset vote' REST API endpoint works correctly for unknown rule and unknown cluster
 func checkResetKnownRuleForUnknownCluster() {
 	testRuleVoteAPIendpoint(unknownClusters, knownRules,
 		"Test whether 'reset vote' REST API endpoint works correctly for known rule and unknown cluster",
-		constructURLResetVoteForRule, checkItemNotFound)
+		constructURLResetVoteForRule, checkItemNotFoundPut)
 }
 
 // checkLikeKnownRuleForImproperCluster tests whether 'like' REST API endpoint works correctly for known rule and improper cluster id
 func checkLikeKnownRuleForImproperCluster() {
 	testRuleVoteAPIendpoint(improperClusterIDs, knownRules,
 		"Test whether 'like' REST API endpoint works correctly for known rule and improper cluster ID",
-		constructURLVoteForRule, checkInvalidUUIDFormat)
+		constructURLVoteForRule, checkInvalidUUIDFormatPut)
 }
 
 // checkDislikeKnownRuleForImproperCluster tests whether 'dislike' REST API endpoint works correctly for known rule and improper cluster id
 func checkDislikeKnownRuleForImproperCluster() {
 	testRuleVoteAPIendpoint(improperClusterIDs, knownRules,
 		"Test whether 'dilike' REST API endpoint works correctly for known rule and improper cluster ID",
-		constructURLUnvoteForRule, checkInvalidUUIDFormat)
+		constructURLUnvoteForRule, checkInvalidUUIDFormatPut)
 }
 
 // checkResetKnownRuleForImproperCluster tests whether 'reset vote' REST API endpoint works correctly for known rule and improper cluster id
 func checkResetKnownRuleForImproperCluster() {
 	testRuleVoteAPIendpoint(improperClusterIDs, knownRules,
 		"Test whether 'reset vote' REST API endpoint works correctly for known rule and improper cluster ID",
-		constructURLResetVoteForRule, checkInvalidUUIDFormat)
+		constructURLResetVoteForRule, checkInvalidUUIDFormatPut)
 }
 
 // checkLikeUnknownRuleForKnownCluster tests whether 'like' REST API endpoint works correctly for unknown rule and known cluster
 func checkLikeUnknownRuleForKnownCluster() {
 	testRuleVoteAPIendpoint(knownClustersForOrganization1, unknownRules,
 		"Test whether 'like' REST API endpoint works correctly for unknown rule and known cluster",
-		constructURLVoteForRule, checkItemNotFound)
+		constructURLVoteForRule, checkItemNotFoundPut)
 }
 
 // checkDislikeUnknownRuleForKnownCluster tests whether 'dislike' REST API endpoint works correctly for unknown rule and known cluster
 func checkDislikeUnknownRuleForKnownCluster() {
 	testRuleVoteAPIendpoint(knownClustersForOrganization1, unknownRules,
 		"Test whether 'dislike' REST API endpoint works correctly for unknown rule and known cluster",
-		constructURLUnvoteForRule, checkItemNotFound)
+		constructURLUnvoteForRule, checkItemNotFoundPut)
 }
 
 // checkResetUnknownRuleForKnownCluster tests whether 'reset vote' REST API endpoint works correctly for unknown rule and known cluster
 func checkResetUnknownRuleForKnownCluster() {
 	testRuleVoteAPIendpoint(knownClustersForOrganization1, unknownRules,
 		"Test whether 'reset vote' REST API endpoint works correctly for unknown rule and known cluster",
-		constructURLResetVoteForRule, checkItemNotFound)
+		constructURLResetVoteForRule, checkItemNotFoundPut)
 }
 
 // checkLikeUnknownRuleForUnknownCluster tests whether 'like' REST API endpoint works correctly for unknown rule and unknown cluster
 func checkLikeUnknownRuleForUnknownCluster() {
 	testRuleVoteAPIendpoint(unknownClusters, unknownRules,
 		"Test whether 'like' REST API endpoint works correctly for unknown rule and unknown cluster",
-		constructURLVoteForRule, checkItemNotFound)
+		constructURLVoteForRule, checkItemNotFoundPut)
 }
 
 // checkDislikeUnknownRuleForUnknownCluster tests whether 'dislike' REST API endpoint works correctly for unknown rule and unknown cluster
 func checkDislikeUnknownRuleForUnknownCluster() {
 	testRuleVoteAPIendpoint(unknownClusters, unknownRules,
 		"Test whether 'dislike' REST API endpoint works correctly for unknown rule and unknown cluster",
-		constructURLUnvoteForRule, checkItemNotFound)
+		constructURLUnvoteForRule, checkItemNotFoundPut)
 }
 
 // checkResetUnknownRuleForUnknownCluster tests whether 'reset vote' REST API endpoint works correctly for unknown rule and unknown cluster
 func checkResetUnknownRuleForUnknownCluster() {
 	testRuleVoteAPIendpoint(unknownClusters, unknownRules,
 		"Test whether 'reset vote' REST API endpoint works correctly for unknown rule and unknown cluster",
-		constructURLResetVoteForRule, checkItemNotFound)
+		constructURLResetVoteForRule, checkItemNotFoundPut)
 }
 
 // checkLikeUnknownRuleForImproperCluster tests whether 'like' REST API endpoint works correctly for unknown rule and improper cluster id
 func checkLikeUnknownRuleForImproperCluster() {
 	testRuleVoteAPIendpoint(improperClusterIDs, unknownRules,
 		"Test whether 'like' REST API endpoint works correctly for unknown rule and improper cluster ID",
-		constructURLVoteForRule, checkInvalidUUIDFormat)
+		constructURLVoteForRule, checkInvalidUUIDFormatPut)
 }
 
 // checkDislikeUnknownRuleForImproperCluster tests whether 'dislike' REST API endpoint works correctly for unknown rule and improper cluster id
 func checkDislikeUnknownRuleForImproperCluster() {
 	testRuleVoteAPIendpoint(improperClusterIDs, unknownRules,
 		"Test whether 'dilike' REST API endpoint works correctly for unknown rule and improper cluster ID",
-		constructURLUnvoteForRule, checkInvalidUUIDFormat)
+		constructURLUnvoteForRule, checkInvalidUUIDFormatPut)
 }
 
 // checkResetUnknownRuleForImproperCluster tests whether 'reset vote' REST API endpoint works correctly for unknown rule and improper cluster id
 func checkResetUnknownRuleForImproperCluster() {
 	testRuleVoteAPIendpoint(improperClusterIDs, unknownRules,
 		"Test whether 'reset vote' REST API endpoint works correctly for unknown rule and improper cluster ID",
-		constructURLResetVoteForRule, checkInvalidUUIDFormat)
+		constructURLResetVoteForRule, checkInvalidUUIDFormatPut)
+}
+
+// checkGetUserVoteForKnownCluster tests whether 'get_vote' REST API endpoint works correctly for known rule and known cluster
+func checkGetUserVoteForKnownCluster() {
+	testRuleVoteAPIendpoint(knownClustersForOrganization1, knownRules,
+		"Test whether 'get_vote' REST API endpoint works correctly for known rule and known cluster",
+		constructURLGetVoteForRule, checkOkStatusGetVote)
+}
+
+// checkGetUserVoteForUnknownCluster tests whether 'get_vote' REST API endpoint works correctly for known rule and unknown cluster
+func checkGetUserVoteForUnknownCluster() {
+	testRuleVoteAPIendpoint(unknownClusters, knownRules,
+		"Test whether 'get_vote' REST API endpoint works correctly for known rule and unknown cluster",
+		constructURLGetVoteForRule, checkItemNotFoundGet)
+}
+
+// checkGetUserVoteForImproperCluster tests whether 'get_vote' REST API endpoint works correctly for known rule and improper cluster
+func checkGetUserVoteForImproperCluster() {
+	testRuleVoteAPIendpoint(improperClusterIDs, knownRules,
+		"Test whether 'get_vote' REST API endpoint works correctly for known rule and improper cluster",
+		constructURLGetVoteForRule, checkInvalidUUIDFormatGet)
+}
+
+// checkGetUserVoteForUnknownRuleAndKnownCluster tests whether 'get_vote' REST API endpoint works correctly for unknown rule and known cluster
+func checkGetUserVoteForUnknownRuleAndKnownCluster() {
+	testRuleVoteAPIendpoint(knownClustersForOrganization1, unknownRules,
+		"Test whether 'get_vote' REST API endpoint works correctly for unknown rule and known cluster",
+		constructURLGetVoteForRule, checkItemNotFoundGet)
+}
+
+// checkGetUserVoteForUnknownRuleAndUnknownCluster tests whether 'get_vote' REST API endpoint works correctly for unknown rule and unknown cluster
+func checkGetUserVoteForUnknownRuleAndUnknownCluster() {
+	testRuleVoteAPIendpoint(unknownClusters, unknownRules,
+		"Test whether 'get_vote' REST API endpoint works correctly for unknown rule and unknown cluster",
+		constructURLGetVoteForRule, checkItemNotFoundGet)
+}
+
+// checkGetUserVoteForUnknownRuleAndImproperCluster tests whether 'get_vote' REST API endpoint works correctly for unknown rule and improper cluster
+func checkGetUserVoteForUnknownRuleAndImproperCluster() {
+	testRuleVoteAPIendpoint(improperClusterIDs, unknownRules,
+		"Test whether 'get_vote' REST API endpoint works correctly for unknown rule and improper cluster",
+		constructURLGetVoteForRule, checkInvalidUUIDFormatGet)
+}
+
+// RuleVoteResponse represents response containing rule votes
+type RuleVoteResponse struct {
+	RuleVote int    `json:"vote"`
+	Status   string `json:"status"`
+}
+
+func voteForRule(cluster string, rule string) {
+	url := constructURLVoteForRule(cluster, rule)
+	checkOkStatusUserVote(url, "Let's vote")
+}
+
+func unvoteForRule(cluster string, rule string) {
+	url := constructURLUnvoteForRule(cluster, rule)
+	checkOkStatusUserVote(url, "Let's unvote")
+}
+
+func resetVoteForRule(cluster string, rule string) {
+	url := constructURLResetVoteForRule(cluster, rule)
+	checkOkStatusUserVote(url, "Let's reset voting")
+}
+
+func checkVoteForClusterAndRule(cluster string, rule string, expectedVote int) {
+	url := constructURLGetVoteForRule(cluster, rule)
+
+	f := frisby.Create("Read vote for rule").Get(url)
+	r := RuleVoteResponse{}
+	setAuthHeader(f)
+	f.Send()
+	f.ExpectStatus(200)
+
+	text, err := f.Resp.Content()
+	if err != nil {
+		f.AddError(err.Error())
+		return
+	}
+
+	err = json.Unmarshal(text, &r)
+	if err != nil {
+		f.AddError(err.Error())
+		return
+	}
+
+	if r.RuleVote != expectedVote {
+		f.AddError(fmt.Sprintf("Expected vote: %d, actual: %d", expectedVote, r.RuleVote))
+	}
+}
+
+func checkGetUserVoteAfterVote() {
+	cluster := knownClustersForOrganization1[0]
+	rule := knownRules[0]
+
+	checkVoteForClusterAndRule(cluster, rule, 0)
+	voteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, 1)
+	resetVoteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, 0)
+}
+
+func checkGetUserVoteAfterUnvote() {
+	cluster := knownClustersForOrganization1[0]
+	rule := knownRules[1]
+
+	checkVoteForClusterAndRule(cluster, rule, 0)
+	unvoteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, -1)
+	resetVoteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, 0)
+}
+
+func checkGetUserVoteAfterDoubleVote() {
+	cluster := knownClustersForOrganization1[0]
+	rule := knownRules[0]
+
+	checkVoteForClusterAndRule(cluster, rule, 0)
+	voteForRule(cluster, rule)
+	voteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, 1)
+	resetVoteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, 0)
+}
+
+func checkGetUserVoteAfterDoubleUnvote() {
+	cluster := knownClustersForOrganization1[0]
+	rule := knownRules[1]
+
+	checkVoteForClusterAndRule(cluster, rule, 0)
+	unvoteForRule(cluster, rule)
+	unvoteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, -1)
+	resetVoteForRule(cluster, rule)
+	checkVoteForClusterAndRule(cluster, rule, 0)
 }
