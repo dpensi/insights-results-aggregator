@@ -44,8 +44,8 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
-	"net/url"
 
 	// we just have to import this package in order to expose pprof interface in debug mode
 	// disable "G108 (CWE-): Profiling endpoint is automatically exposed on /debug/pprof"
@@ -117,61 +117,59 @@ func (server *HTTPServer) listOfClustersForOrganization(writer http.ResponseWrit
 }
 
 func (server *HTTPServer) readReportForCluster(writer http.ResponseWriter, request *http.Request) {
-	organizationID, err := readOrganizationID(writer, request, server.Config.Auth)
-	if err != nil {
+	clusterName, successful := readClusterName(writer, request)
+	if !successful {
 		// everything has been handled already
 		return
 	}
 
-	clusterName, err := readClusterName(writer, request)
-	if err != nil {
-		// everything has been handled already
+	userID, successful := readUserID(writer, request)
+	if !successful {
 		return
 	}
 
-	userID, err := server.readUserID(request, writer)
-	if err != nil {
-		// everything has been handled already
+	orgID, successful := readOrgID(writer, request)
+	if !successful {
 		return
 	}
 
-	report, lastChecked, err := server.Storage.ReadReportForCluster(organizationID, clusterName)
+	report, lastChecked, err := server.Storage.ReadReportForCluster(orgID, clusterName)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to read report for cluster")
 		handleServerError(writer, err)
 		return
 	}
 
-	rulesContent, rulesCount, err := server.getContentForRules(writer, report, userID, clusterName)
+	var reportRules types.ReportRules
+	err = json.Unmarshal([]byte(report), &reportRules)
 	if err != nil {
-		// everything has been handled already
-		return
-	}
-	hitRulesCount := len(rulesContent)
-
-	feedbacks, err := server.Storage.GetUserFeedbackOnRules(clusterName, rulesContent, userID)
-	if err != nil {
-		log.Error().Err(err).Msg("Unable to retrieve feedback results from database")
+		log.Error().Err(err).Msg("Unable to parse cluster report")
 		handleServerError(writer, err)
 		return
 	}
 
-	rulesContent = server.getUserVoteForRules(feedbacks, rulesContent)
+	hitRules := reportRules.HitRules
+	hitRulesCount := len(hitRules)
+
+	hitRules, err = server.getFeedbackAndTogglesOnRules(clusterName, userID, hitRules)
+
+	if err != nil {
+		log.Error().Err(err).Msg("An error has occurred when getting feedback or toggles")
+		handleServerError(writer, err)
+	}
 
 	// -1 as count in response means there are no rules for this cluster
 	// as opposed to no rules hit for the cluster
-	if rulesCount == 0 {
-		rulesCount = -1
-	} else {
-		rulesCount = hitRulesCount
+	if hitRulesCount == 0 {
+		hitRulesCount = -1
 	}
 
 	response := types.ReportResponse{
 		Meta: types.ReportResponseMeta{
-			Count:         rulesCount,
+			Count:         hitRulesCount,
 			LastCheckedAt: lastChecked,
 		},
-		Rules: rulesContent,
+		Report: hitRules,
 	}
 
 	err = responses.SendOK(writer, responses.BuildOkResponseWithData("report", response))
@@ -196,46 +194,6 @@ func (server *HTTPServer) checkUserClusterPermissions(writer http.ResponseWriter
 		}
 	}
 	return nil
-}
-
-// getRuleGroups serves as a proxy to the insights-content-service redirecting the request
-// if the service is alive
-func (server *HTTPServer) getRuleGroups(writer http.ResponseWriter, request *http.Request) {
-	contentServiceURL, err := url.Parse(server.Config.ContentServiceURL)
-
-	if err != nil {
-		log.Error().Err(err).Msg("Error during Content Service URL parsing")
-		handleServerError(writer, err)
-		return
-	}
-
-	// test if service is alive
-	_, err = http.Get(contentServiceURL.String())
-	if err != nil {
-		log.Error().Err(err).Msg("Content service unavailable")
-
-		if _, ok := err.(*url.Error); ok {
-			err = &ContentServiceUnavailableError{}
-		}
-
-		handleServerError(writer, err)
-		return
-	}
-
-	http.Redirect(writer, request, contentServiceURL.String()+RuleGroupsEndpoint, 302)
-}
-
-// readUserID tries to retrieve user ID from request. If any error occurs, error response is send back to client.
-func (server *HTTPServer) readUserID(request *http.Request, writer http.ResponseWriter) (types.UserID, error) {
-	userID, err := server.GetCurrentUserID(request)
-	if err != nil {
-		const message = "Unable to get user id"
-		log.Error().Err(err).Msg(message)
-		handleServerError(writer, err)
-		return "", err
-	}
-
-	return userID, nil
 }
 
 func (server *HTTPServer) deleteOrganizations(writer http.ResponseWriter, request *http.Request) {
@@ -293,18 +251,6 @@ func (server HTTPServer) serveAPISpecFile(writer http.ResponseWriter, request *h
 	http.ServeFile(writer, request, absPath)
 }
 
-// addCORSHeaders - middleware for adding headers that should be in any response
-func (server *HTTPServer) addCORSHeaders(nextHandler http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-			w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			nextHandler.ServeHTTP(w, r)
-		})
-}
-
 // handleOptionsMethod - middleware for handling OPTIONS method
 func (server *HTTPServer) handleOptionsMethod(nextHandler http.Handler) http.Handler {
 	return http.HandlerFunc(
@@ -342,11 +288,6 @@ func (server *HTTPServer) Initialize() http.Handler {
 			openAPIURL + "?", // to be able to test using Frisby
 		}
 		router.Use(func(next http.Handler) http.Handler { return server.Authentication(next, noAuthURLs) })
-	}
-
-	if server.Config.EnableCORS {
-		router.Use(server.addCORSHeaders)
-		router.Use(server.handleOptionsMethod)
 	}
 
 	server.addEndpointsToRouter(router)

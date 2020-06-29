@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -29,25 +28,25 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/RedHatInsights/insights-results-aggregator-data/testdata"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 
+	httputils "github.com/RedHatInsights/insights-operator-utils/http"
+
 	"github.com/RedHatInsights/insights-results-aggregator/server"
 	"github.com/RedHatInsights/insights-results-aggregator/storage"
 	"github.com/RedHatInsights/insights-results-aggregator/tests/helpers"
-	"github.com/RedHatInsights/insights-results-aggregator/tests/testdata"
 	"github.com/RedHatInsights/insights-results-aggregator/types"
 )
 
 var config = server.Configuration{
-	Address:           ":8080",
-	APIPrefix:         "/api/test/",
-	APISpecFile:       "openapi.json",
-	Debug:             true,
-	Auth:              false,
-	EnableCORS:        true,
-	ContentServiceURL: "nonexistent/url",
+	Address:     ":8080",
+	APIPrefix:   "/api/test/",
+	APISpecFile: "openapi.json",
+	Debug:       true,
+	Auth:        false,
 }
 
 func init() {
@@ -63,33 +62,9 @@ func checkResponseCode(t *testing.T, expected, actual int) {
 func TestMakeURLToEndpoint(t *testing.T) {
 	assert.Equal(
 		t,
-		"api/prefix/report/-55/cluster_id",
-		server.MakeURLToEndpoint("api/prefix/", server.ReportEndpoint, -55, "cluster_id"),
+		"api/prefix/organizations/2/clusters/cluster_id/users/1/report",
+		httputils.MakeURLToEndpoint("api/prefix/", server.ReportEndpoint, 2, "cluster_id", 1),
 	)
-}
-
-func TestAddCORSHeaders(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	err := mockStorage.WriteReportForCluster(
-		testdata.OrgID, testdata.ClusterName, "{}", time.Now(), testdata.KafkaOffset,
-	)
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodOptions,
-		Endpoint:     server.ReportEndpoint,
-		EndpointArgs: []interface{}{testdata.OrgID, testdata.ClusterName},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Access-Control-Allow-Origin":      "*",
-			"Access-Control-Allow-Methods":     "POST, GET, OPTIONS, PUT, DELETE",
-			"Access-Control-Allow-Headers":     "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization",
-			"Access-Control-Allow-Credentials": "true",
-		},
-	})
 }
 
 func TestListOfClustersForNonExistingOrganization(t *testing.T) {
@@ -329,14 +304,10 @@ func TestRuleFeedbackVote(t *testing.T) {
 			)
 			helpers.FailOnError(t, err)
 
-			err = mockStorage.LoadRuleContent(testdata.RuleContent3Rules)
-			helpers.FailOnError(t, err)
-
 			helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 				Method:       http.MethodPut,
 				Endpoint:     endpoint,
-				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-				UserID:       testdata.UserID,
+				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 			}, &helpers.APIResponse{
 				StatusCode: http.StatusOK,
 				Body:       `{"status": "ok"}`,
@@ -354,31 +325,6 @@ func TestRuleFeedbackVote(t *testing.T) {
 	}
 }
 
-func TestRuleFeedbackVote_CheckIfRuleExists_DBError(t *testing.T) {
-	const errStr = "Internal Server Error"
-
-	mockStorage, expects := helpers.MustGetMockStorageWithExpects(t)
-	defer helpers.MustCloseMockStorageWithExpects(t, mockStorage, expects)
-
-	expects.ExpectQuery("SELECT .* FROM report").
-		WillReturnRows(
-			sqlmock.NewRows([]string{"report", "last_checked_at"}).AddRow("1", time.Now()),
-		)
-
-	expects.ExpectQuery("SELECT .* FROM rule").
-		WillReturnError(fmt.Errorf(errStr))
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPut,
-		Endpoint:     server.LikeRuleEndpoint,
-		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-		UserID:       testdata.UserID,
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusInternalServerError,
-		Body:       `{"status": "` + errStr + `"}`,
-	})
-}
-
 func TestRuleFeedbackVote_DBError(t *testing.T) {
 	const errStr = "Internal Server Error"
 
@@ -390,35 +336,13 @@ func TestRuleFeedbackVote_DBError(t *testing.T) {
 			sqlmock.NewRows([]string{"report", "last_checked_at"}).AddRow("1", time.Now()),
 		)
 
-	expects.ExpectQuery("SELECT .* FROM rule").
-		WillReturnRows(
-			sqlmock.NewRows(
-				[]string{
-					"module",
-					"name",
-					"summary",
-					"reason",
-					"resolution",
-					"more_info",
-				},
-			).AddRow(
-				testdata.Rule1ID,
-				testdata.Rule1Name,
-				testdata.Rule1Summary,
-				testdata.Rule1Reason,
-				testdata.Rule1Resolution,
-				testdata.Rule1MoreInfo,
-			),
-		)
-
 	expects.ExpectPrepare("INSERT INTO").
 		WillReturnError(fmt.Errorf(errStr))
 
 	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 		Method:       http.MethodPut,
 		Endpoint:     server.LikeRuleEndpoint,
-		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-		UserID:       testdata.UserID,
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusInternalServerError,
 		Body:       `{"status": "` + errStr + `"}`,
@@ -432,8 +356,7 @@ func TestHTTPServer_UserFeedback_ClusterDoesNotExistError(t *testing.T) {
 		helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
 			Method:       http.MethodPut,
 			Endpoint:     endpoint,
-			EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-			UserID:       testdata.UserID,
+			EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 		}, &helpers.APIResponse{
 			StatusCode: http.StatusNotFound,
 			Body: fmt.Sprintf(
@@ -444,32 +367,32 @@ func TestHTTPServer_UserFeedback_ClusterDoesNotExistError(t *testing.T) {
 	}
 }
 
-func TestHTTPServer_UserFeedback_RuleDoesNotExistError(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	err := mockStorage.WriteReportForCluster(
-		testdata.OrgID, testdata.ClusterName, testdata.Report3Rules, testdata.LastCheckedAt, testdata.KafkaOffset,
-	)
-	helpers.FailOnError(t, err)
-
-	for _, endpoint := range []string{
-		server.LikeRuleEndpoint, server.DislikeRuleEndpoint, server.ResetVoteOnRuleEndpoint,
-	} {
-		helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-			Method:       http.MethodPut,
-			Endpoint:     endpoint,
-			EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-			UserID:       testdata.UserID,
-		}, &helpers.APIResponse{
-			StatusCode: http.StatusNotFound,
-			Body: fmt.Sprintf(
-				`{"status": "Item with ID %v was not found in the storage"}`,
-				testdata.Rule1ID,
-			),
-		})
-	}
-}
+// TODO: make working with the new arch
+//func TestHTTPServer_UserFeedback_RuleDoesNotExistError(t *testing.T) {
+//	mockStorage, closer := helpers.MustGetMockStorage(t, true)
+//	defer closer()
+//
+//	err := mockStorage.WriteReportForCluster(
+//		testdata.OrgID, testdata.ClusterName, testdata.Report3Rules, testdata.LastCheckedAt, testdata.KafkaOffset,
+//	)
+//	helpers.FailOnError(t, err)
+//
+//	for _, endpoint := range []string{
+//		server.LikeRuleEndpoint, server.DislikeRuleEndpoint, server.ResetVoteOnRuleEndpoint,
+//	} {
+//		helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
+//			Method:       http.MethodPut,
+//			Endpoint:     endpoint,
+//			EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
+//		}, &helpers.APIResponse{
+//			StatusCode: http.StatusNotFound,
+//			Body: fmt.Sprintf(
+//				`{"status": "Item with ID %v was not found in the storage"}`,
+//				testdata.Rule1ID,
+//			),
+//		})
+//	}
+//}
 
 func TestRuleFeedbackErrorBadClusterName(t *testing.T) {
 	buf := new(bytes.Buffer)
@@ -478,7 +401,7 @@ func TestRuleFeedbackErrorBadClusterName(t *testing.T) {
 	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
 		Method:       http.MethodPut,
 		Endpoint:     server.LikeRuleEndpoint,
-		EndpointArgs: []interface{}{testdata.BadClusterName, testdata.Rule1ID},
+		EndpointArgs: []interface{}{testdata.BadClusterName, testdata.Rule1ID, testdata.UserID},
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusBadRequest,
 		Body:       `{"status": "Error during parsing param 'cluster' with value 'aaaa'. Error: 'invalid UUID length: 4'"}`,
@@ -491,7 +414,7 @@ func TestRuleFeedbackErrorBadRuleID(t *testing.T) {
 	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
 		Method:       http.MethodPut,
 		Endpoint:     server.LikeRuleEndpoint,
-		EndpointArgs: []interface{}{testdata.ClusterName, testdata.BadRuleID},
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.BadRuleID, testdata.UserID},
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusBadRequest,
 		Body: `{
@@ -504,7 +427,7 @@ func TestHTTPServer_GetVoteOnRule_BadRuleID(t *testing.T) {
 	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
 		Method:       http.MethodGet,
 		Endpoint:     server.GetVoteOnRuleEndpoint,
-		EndpointArgs: []interface{}{testdata.ClusterName, testdata.BadRuleID},
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.BadRuleID, testdata.UserID},
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusBadRequest,
 		Body: `{
@@ -522,9 +445,6 @@ func TestHTTPServer_GetVoteOnRule_DBError(t *testing.T) {
 	)
 	helpers.FailOnError(t, err)
 
-	err = mockStorage.LoadRuleContent(testdata.RuleContent3Rules)
-	helpers.FailOnError(t, err)
-
 	connection := mockStorage.(*storage.DBStorage).GetConnection()
 
 	_, err = connection.Exec(`DROP TABLE cluster_rule_user_feedback;`)
@@ -533,29 +453,11 @@ func TestHTTPServer_GetVoteOnRule_DBError(t *testing.T) {
 	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 		Method:       http.MethodGet,
 		Endpoint:     server.GetVoteOnRuleEndpoint,
-		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusInternalServerError,
 		Body:       `{"status": "Internal Server Error"}`,
 	})
-}
-
-func TestRuleFeedbackErrorBadUserID(t *testing.T) {
-	testServer := server.New(config, nil)
-
-	url := server.MakeURLToEndpoint(config.APIPrefix, server.LikeRuleEndpoint, testdata.ClusterName, testdata.Rule1ID)
-
-	req, err := http.NewRequest(http.MethodPut, url, nil)
-	helpers.FailOnError(t, err)
-
-	// put wrong identity
-	identity := "wrong type"
-	req = req.WithContext(context.WithValue(req.Context(), server.ContextKeyUser, identity))
-
-	response := helpers.ExecuteRequest(testServer, req).Result()
-
-	assert.Equal(t, http.StatusInternalServerError, response.StatusCode, "Expected different status code")
-	helpers.CheckResponseBodyJSON(t, `{"status": "Internal Server Error"}`, response.Body)
 }
 
 func TestRuleFeedbackErrorClosedStorage(t *testing.T) {
@@ -565,8 +467,7 @@ func TestRuleFeedbackErrorClosedStorage(t *testing.T) {
 	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 		Method:       http.MethodPut,
 		Endpoint:     server.LikeRuleEndpoint,
-		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-		UserID:       testdata.UserID,
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusInternalServerError,
 		Body:       `{"status": "Internal Server Error"}`,
@@ -599,14 +500,10 @@ func TestHTTPServer_GetVoteOnRule(t *testing.T) {
 			)
 			helpers.FailOnError(t, err)
 
-			err = mockStorage.LoadRuleContent(testdata.RuleContent3Rules)
-			helpers.FailOnError(t, err)
-
 			helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 				Method:       http.MethodPut,
 				Endpoint:     endpoint,
-				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-				UserID:       testdata.UserID,
+				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 			}, &helpers.APIResponse{
 				StatusCode: http.StatusOK,
 				Body:       `{"status": "ok"}`,
@@ -615,8 +512,7 @@ func TestHTTPServer_GetVoteOnRule(t *testing.T) {
 			helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 				Method:       http.MethodGet,
 				Endpoint:     server.GetVoteOnRuleEndpoint,
-				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-				UserID:       testdata.UserID,
+				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 			}, &helpers.APIResponse{
 				StatusCode: http.StatusOK,
 				Body:       fmt.Sprintf(`{"status": "ok", "vote":%v}`, expectedVote),
@@ -649,14 +545,10 @@ func TestRuleToggle(t *testing.T) {
 			)
 			helpers.FailOnError(t, err)
 
-			err = mockStorage.LoadRuleContent(testdata.RuleContent3Rules)
-			helpers.FailOnError(t, err)
-
 			helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 				Method:       http.MethodPut,
 				Endpoint:     endpoint,
-				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-				UserID:       testdata.UserID,
+				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
 			}, &helpers.APIResponse{
 				StatusCode: http.StatusOK,
 				Body:       `{"status": "ok"}`,
@@ -678,47 +570,29 @@ func TestRuleToggle(t *testing.T) {
 	}
 }
 
-func TestRuleToggleClosedStorage(t *testing.T) {
-	const errStr = "Internal Server Error"
+func TestRuleToggle_EmptyUserID(t *testing.T) {
+	for _, endpoint := range []string{
+		server.DisableRuleForClusterEndpoint, server.EnableRuleForClusterEndpoint,
+	} {
+		func(endpoint string) {
+			mockStorage, closer := helpers.MustGetMockStorage(t, true)
+			defer closer()
 
-	mockStorage, expects := helpers.MustGetMockStorageWithExpects(t)
-	defer helpers.MustCloseMockStorageWithExpects(t, mockStorage, expects)
+			err := mockStorage.WriteReportForCluster(
+				testdata.OrgID, testdata.ClusterName, testdata.Report3Rules, testdata.LastCheckedAt, testdata.KafkaOffset,
+			)
+			helpers.FailOnError(t, err)
 
-	expects.ExpectQuery("SELECT .* FROM report").
-		WillReturnRows(
-			sqlmock.NewRows([]string{"report", "last_checked_at"}).AddRow("1", time.Now()),
-		)
-
-	expects.ExpectQuery("SELECT .* FROM rule").
-		WillReturnRows(
-			sqlmock.NewRows(
-				[]string{
-					"module",
-					"name",
-					"summary",
-					"reason",
-					"resolution",
-					"more_info",
-				},
-			).AddRow(
-				testdata.Rule1ID,
-				testdata.Rule1Name,
-				testdata.Rule1Summary,
-				testdata.Rule1Reason,
-				testdata.Rule1Resolution,
-				testdata.Rule1MoreInfo,
-			),
-		)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPut,
-		Endpoint:     server.DisableRuleForClusterEndpoint,
-		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID},
-		UserID:       testdata.UserID,
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusInternalServerError,
-		Body:       `{"status": "Internal Server Error"}`,
-	})
+			helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
+				Method:       http.MethodPut,
+				Endpoint:     endpoint,
+				EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, " "}, // space is crucial here
+			}, &helpers.APIResponse{
+				StatusCode: http.StatusBadRequest,
+				Body:       `{"status": "Missing required param from request: user_id"}`,
+			})
+		}(endpoint)
+	}
 }
 
 func TestHTTPServer_deleteOrganizationsOK(t *testing.T) {
@@ -790,546 +664,5 @@ func TestHTTPServer_deleteClusters_BadClusterName(t *testing.T) {
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusBadRequest,
 		Body:       `{"status": "Error during parsing param 'cluster' with value 'aaaa'. Error: 'invalid UUID length: 4'"}`,
-	})
-}
-
-func createRule(t *testing.T, mockStorage storage.Storage) {
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-		Body: fmt.Sprintf(`{
-			"module": "%v",
-			"name": "%v",
-			"summary": "%v",
-			"reason": "%v",
-			"resolution": "%v",
-			"more_info": "%v"
-		}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body: `{
-			"status": "ok",
-			"rule": ` + fmt.Sprintf(`{
-				"module": "%v",
-				"name": "%v",
-				"summary": "%v",
-				"reason": "%v",
-				"resolution": "%v",
-				"more_info": "%v"
-			}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		) + `
-		}`,
-	})
-}
-
-func TestHTTPServer_CreateRule(t *testing.T) {
-	createRule(t, nil)
-}
-
-func TestHTTPServer_CreateRule_BadRuleID(t *testing.T) {
-	const errMessage = "Error during parsing param 'rule_id' with value 'rule id with spaces'." +
-		" Error: 'invalid rule ID, it must contain only from latin characters, number, underscores or dots'"
-
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.BadRuleID},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "` + errMessage + `"}`,
-	})
-}
-
-func TestHTTPServer_CreateRule_BadRuleData(t *testing.T) {
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-		Body:         "not-json",
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "invalid character 'o' in literal null (expecting 'u')"}`,
-	})
-}
-
-func TestHTTPServer_CreateRule_NoBody(t *testing.T) {
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "client didn't provide request body"}`,
-	})
-}
-
-func TestHTTPServer_CreateRule_BadJSONBody(t *testing.T) {
-	for _, body := range []string{
-		`{"module": []}`, `[]`,
-	} {
-		helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-			Method:       http.MethodPost,
-			Endpoint:     server.RuleEndpoint,
-			EndpointArgs: []interface{}{testdata.Rule1ID},
-			Body:         body,
-		}, &helpers.APIResponse{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"status": "bad type in json data"}`,
-		})
-	}
-}
-
-func TestHTTPServer_CreateRule_DBError(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	connection := mockStorage.(*storage.DBStorage).GetConnection()
-
-	query := "DROP TABLE rule"
-	if os.Getenv("INSIGHTS_RESULTS_AGGREGATOR__TESTS_DB") == "postgres" {
-		query += " CASCADE"
-	}
-	query += ";"
-
-	_, err := connection.Exec(query)
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-		Body: fmt.Sprintf(`{
-			"module": "%v",
-			"name": "%v",
-			"summary": "%v",
-			"reason": "%v",
-			"resolution": "%v",
-			"more_info": "%v"
-		}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusInternalServerError,
-		Body:       `{"status": "Internal Server Error"}`,
-	})
-}
-
-func TestHTTPServer_CreateRuleErrorKey(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	createRule(t, mockStorage)
-
-	expectedRuleErrorKeyStr, err := json.Marshal(testdata.RuleErrorKey1)
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID, testdata.RuleErrorKey1.ErrorKey},
-		Body:         string(expectedRuleErrorKeyStr),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body: fmt.Sprintf(`{
-			"rule_error_key": %v,
-			"status": "ok"
-		}`, string(expectedRuleErrorKeyStr)),
-	})
-}
-
-func TestHTTPServer_CreateRuleErrorKey_BadRuleKey(t *testing.T) {
-	const errMessage = "Error during parsing param 'rule_id' with value 'rule id with spaces'." +
-		" Error: 'invalid rule ID, it must contain only from latin characters, number, underscores or dots'"
-
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.BadRuleID, "ek"},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "` + errMessage + `"}`,
-	})
-}
-
-func TestHTTPServer_CreateRuleErrorKey_BadRuleErrorKeyData(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	createRule(t, mockStorage)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID, "ek"},
-		Body:         "not-json",
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "invalid character 'o' in literal null (expecting 'u')"}`,
-	})
-}
-
-func TestHTTPServer_CreateRuleErrorKey_NoBody(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	createRule(t, mockStorage)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID, "ek"},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "client didn't provide request body"}`,
-	})
-}
-
-func TestHTTPServer_CreateRuleErrorKey_BadJSONBody(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	createRule(t, mockStorage)
-
-	for _, body := range []string{
-		`{"rule_module": []}`, `[]`,
-	} {
-		helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-			Method:       http.MethodPost,
-			Endpoint:     server.RuleErrorKeyEndpoint,
-			EndpointArgs: []interface{}{testdata.Rule1ID, "ek"},
-			Body:         body,
-		}, &helpers.APIResponse{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"status": "bad type in json data"}`,
-		})
-	}
-}
-
-func TestHTTPServer_CreateRuleErrorKey_RuleDoesNotExist(t *testing.T) {
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID, "ek"},
-		Body:         fmt.Sprintf(`{"rule_modlue": "%v"}`, testdata.Rule1ID),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusNotFound,
-		Body:       fmt.Sprintf(`{"status": "Item with ID %v was not found in the storage"}`, testdata.Rule1ID),
-	})
-}
-
-func TestHTTPServer_DeleteRule(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-		Body: fmt.Sprintf(`{
-			"module": "%v",
-			"name": "%v",
-			"summary": "%v",
-			"reason": "%v",
-			"resolution": "%v",
-			"more_info": "%v"
-		}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body: `{
-			"status": "ok",
-			"rule": ` + fmt.Sprintf(`{
-				"module": "%v",
-				"name": "%v",
-				"summary": "%v",
-				"reason": "%v",
-				"resolution": "%v",
-				"more_info": "%v"
-			}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		) + `
-		}`,
-	})
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodDelete,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body:       `{"status": "ok"}`,
-	})
-}
-
-func TestHTTPServer_DeleteRule_BadRuleID(t *testing.T) {
-	const errMessage = "Error during parsing param 'rule_id' with value 'rule id with spaces'." +
-		" Error: 'invalid rule ID, it must contain only from latin characters, number, underscores or dots'"
-
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:       http.MethodDelete,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.BadRuleID},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "` + errMessage + `"}`,
-	})
-}
-
-func TestHTTPServer_DeleteRule_DBError(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	connection := mockStorage.(*storage.DBStorage).GetConnection()
-
-	query := "DROP TABLE rule"
-	if os.Getenv("INSIGHTS_RESULTS_AGGREGATOR__TESTS_DB") == "postgres" {
-		query += " CASCADE"
-	}
-	query += ";"
-
-	_, err := connection.Exec(query)
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodDelete,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-		Body: fmt.Sprintf(`{
-			"module": "%v",
-			"name": "%v",
-			"summary": "%v",
-			"reason": "%v",
-			"resolution": "%v",
-			"more_info": "%v"
-		}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusInternalServerError,
-		Body:       `{"status": "Internal Server Error"}`,
-	})
-}
-
-func TestHTTPServer_DeleteRuleErrorKey(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID},
-		Body: fmt.Sprintf(`{
-			"module": "%v",
-			"name": "%v",
-			"summary": "%v",
-			"reason": "%v",
-			"resolution": "%v",
-			"more_info": "%v"
-		}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body: `{
-			"status": "ok",
-			"rule": ` + fmt.Sprintf(`{
-				"module": "%v",
-				"name": "%v",
-				"summary": "%v",
-				"reason": "%v",
-				"resolution": "%v",
-				"more_info": "%v"
-			}`,
-			testdata.Rule1ID,
-			testdata.Rule1Name,
-			testdata.Rule1Summary,
-			testdata.Rule1Reason,
-			testdata.Rule1Resolution,
-			testdata.Rule1MoreInfo,
-		) + `
-		}`,
-	})
-
-	expectedRuleErrorKeyStr, err := json.Marshal(testdata.RuleErrorKey1)
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodPost,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID, testdata.RuleErrorKey1.ErrorKey},
-		Body:         string(expectedRuleErrorKeyStr),
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body: fmt.Sprintf(`{
-			"status": "ok",
-			"rule_error_key": %v
-		}`, string(expectedRuleErrorKeyStr)),
-	})
-
-	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
-		Method:       http.MethodDelete,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1ID, testdata.RuleErrorKey1.ErrorKey},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body:       `{"status": "ok"}`,
-	})
-}
-
-func TestHTTPServer_DeleteRuleErrorKey_BadRuleKey(t *testing.T) {
-	const errMessage = "Error during parsing param 'rule_id' with value 'rule id with spaces'." +
-		" Error: 'invalid rule ID, it must contain only from latin characters, number, underscores or dots'"
-
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:       http.MethodDelete,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.BadRuleID, "ek"},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{"status": "` + errMessage + `"}`,
-	})
-}
-
-func TestHTTPServer_getRuleGroupsServiceUnavailable(t *testing.T) {
-	// nonexistent url set in config
-	helpers.AssertAPIRequest(t, nil, &config, &helpers.APIRequest{
-		Method:   http.MethodGet,
-		Endpoint: server.RuleGroupsEndpoint,
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusServiceUnavailable,
-		Body:       `{"status": "Content service is unreachable"}`,
-	})
-}
-
-func TestHTTPServer_getRuleGroupsWrongUrl(t *testing.T) {
-	configCopy := config
-	// set invalid url for url parser to fail
-	configCopy.ContentServiceURL = " http://foo.bar"
-
-	helpers.AssertAPIRequest(t, nil, &configCopy, &helpers.APIRequest{
-		Method:   http.MethodGet,
-		Endpoint: server.RuleGroupsEndpoint,
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusInternalServerError,
-		Body:       `{"status": "Internal Server Error"}`,
-	})
-}
-
-func TestHttpServer_GetRule(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	err := mockStorage.CreateRule(testdata.Rule1)
-	helpers.FailOnError(t, err)
-
-	err = mockStorage.CreateRuleErrorKey(testdata.RuleErrorKey1)
-	helpers.FailOnError(t, err)
-
-	err = mockStorage.CreateRule(testdata.Rule2)
-	helpers.FailOnError(t, err)
-
-	err = mockStorage.CreateRuleErrorKey(testdata.RuleErrorKey2)
-	helpers.FailOnError(t, err)
-
-	expectedRuleStr, err := json.MarshalIndent(testdata.RuleWithContent1, "", "\t")
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
-		Method:       http.MethodGet,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1.Module, testdata.RuleErrorKey1.ErrorKey},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body: fmt.Sprintf(`{
-			"rule": %v,
-			"status":"ok"
-		}`, string(expectedRuleStr)),
-	})
-
-	expectedRuleStr, err = json.MarshalIndent(testdata.RuleWithContent2, "", "\t")
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
-		Method:       http.MethodGet,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule2.Module, testdata.RuleErrorKey2.ErrorKey},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusOK,
-		Body: fmt.Sprintf(`{
-			"rule": %v,
-			"status":"ok"
-		}`, string(expectedRuleStr)),
-	})
-}
-
-func TestHttpServer_GetRule_DBError(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	closer()
-
-	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
-		Method:       http.MethodGet,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1.Module, testdata.RuleErrorKey1.ErrorKey},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusInternalServerError,
-		Body:       `{"status":"Internal Server Error"}`,
-	})
-}
-
-func TestHttpServer_GetRule_NotFound(t *testing.T) {
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
-		Method:       http.MethodGet,
-		Endpoint:     server.RuleErrorKeyEndpoint,
-		EndpointArgs: []interface{}{testdata.Rule1.Module, testdata.RuleErrorKey1.ErrorKey},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusNotFound,
-		Body: fmt.Sprintf(
-			`{"status":"Item with ID %v/%v was not found in the storage"}`,
-			testdata.Rule1.Module,
-			testdata.RuleErrorKey1.ErrorKey,
-		),
 	})
 }
