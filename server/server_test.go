@@ -33,8 +33,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 
-	httputils "github.com/RedHatInsights/insights-operator-utils/http"
-
+	"github.com/RedHatInsights/insights-results-aggregator/conf"
 	"github.com/RedHatInsights/insights-results-aggregator/server"
 	"github.com/RedHatInsights/insights-results-aggregator/storage"
 	"github.com/RedHatInsights/insights-results-aggregator/tests/helpers"
@@ -42,29 +41,29 @@ import (
 )
 
 var config = server.Configuration{
-	Address:     ":8080",
-	APIPrefix:   "/api/test/",
-	APISpecFile: "openapi.json",
-	Debug:       true,
-	Auth:        false,
+	Address:                      ":8080",
+	APIPrefix:                    "/api/test/",
+	APISpecFile:                  "openapi.json",
+	Debug:                        true,
+	Auth:                         false,
+	MaximumFeedbackMessageLength: 255,
 }
 
 func init() {
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 }
 
+func mustLoadConfiguration(path string) {
+	err := conf.LoadConfiguration(path)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func checkResponseCode(t *testing.T, expected, actual int) {
 	if expected != actual {
 		t.Errorf("Expected response code %d. Got %d\n", expected, actual)
 	}
-}
-
-func TestMakeURLToEndpoint(t *testing.T) {
-	assert.Equal(
-		t,
-		"api/prefix/organizations/2/clusters/cluster_id/users/1/report",
-		httputils.MakeURLToEndpoint("api/prefix/", server.ReportEndpoint, 2, "cluster_id", 1),
-	)
 }
 
 func TestListOfClustersForNonExistingOrganization(t *testing.T) {
@@ -199,10 +198,11 @@ func TestServerStart(t *testing.T) {
 	helpers.RunTestWithTimeout(t, func(t *testing.T) {
 		s := server.New(server.Configuration{
 			// will use any free port
-			Address:   ":0",
-			APIPrefix: config.APIPrefix,
-			Auth:      true,
-			Debug:     true,
+			Address:                      ":0",
+			APIPrefix:                    config.APIPrefix,
+			Auth:                         true,
+			Debug:                        true,
+			MaximumFeedbackMessageLength: 255,
 		}, nil)
 
 		go func() {
@@ -226,7 +226,7 @@ func TestServerStart(t *testing.T) {
 			helpers.FailOnError(t, err)
 		}()
 
-		err := s.Start()
+		err := s.Start(nil)
 		if err != nil && err != http.ErrServerClosed {
 			t.Fatal(err)
 		}
@@ -235,11 +235,12 @@ func TestServerStart(t *testing.T) {
 
 func TestServerStartError(t *testing.T) {
 	testServer := server.New(server.Configuration{
-		Address:   "localhost:99999",
-		APIPrefix: "",
+		Address:                      "localhost:99999",
+		APIPrefix:                    "",
+		MaximumFeedbackMessageLength: 255,
 	}, nil)
 
-	err := testServer.Start()
+	err := testServer.Start(nil)
 	assert.EqualError(t, err, "listen tcp: address 99999: invalid port")
 }
 
@@ -423,27 +424,59 @@ func TestRuleFeedbackErrorBadRuleID(t *testing.T) {
 	})
 }
 
-func TestRuleFeedbackErrorLongMessage(t *testing.T) {
+// checkBadRuleFeedbackRequest tries to send rule feedback with bad content and
+// then check if that content is rejected properly.
+func checkBadRuleFeedbackRequest(t *testing.T, message string, expectedStatus string) {
+	requestBody := `{
+			"message": "` + message + `"
+	}`
+
+	responseBody := `{
+			"status": "` + expectedStatus + `"
+	}`
+
 	mockStorage, closer := helpers.MustGetMockStorage(t, true)
 	defer closer()
 
 	err := mockStorage.WriteReportForCluster(
-		testdata.OrgID, testdata.ClusterName, testdata.Report3Rules, testdata.LastCheckedAt, testdata.KafkaOffset,
+		testdata.OrgID, testdata.ClusterName, testdata.Report3Rules,
+		testdata.LastCheckedAt, testdata.KafkaOffset,
 	)
 	helpers.FailOnError(t, err)
 	helpers.AssertAPIRequest(t, mockStorage, &config, &helpers.APIRequest{
 		Method:       http.MethodPut,
 		Endpoint:     server.LikeRuleEndpoint,
 		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
-		Body: `{
-			"message": "Veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery long message"
-		}`,
+		Body:         requestBody,
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusBadRequest,
-		Body: `{
-			"status": "Error during validating param 'message' with value 'Veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery long message'. Error: 'String is longer then 250'"
-		}`,
+		Body:       responseBody,
 	})
+}
+
+// TestRuleFeedbackErrorLongMessage checks if message longer than 250 bytes is
+// rejected properly.
+func TestRuleFeedbackErrorLongMessage(t *testing.T) {
+	os.Clearenv()
+	mustLoadConfiguration("tests/config1")
+
+	checkBadRuleFeedbackRequest(t,
+		"Veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery long message",
+		// 	"Error during validating param 'message' with value 'Veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery long message'. Error: 'String is longer than 250 bytes'")
+		"Error during validating param 'message' with value 'Veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryver...'. Error: 'feedback message is longer than 255 bytes'")
+}
+
+// TestRuleFeedbackErrorLongMessageWithUnicodeCharacters checks whether the
+// message containing less than 250 Unicode characters, but longer than 250
+// bytes, is rejected
+func TestRuleFeedbackErrorLongMessageWithUnicodeCharacters(t *testing.T) {
+	os.Clearenv()
+	mustLoadConfiguration("tests/config1")
+
+	checkBadRuleFeedbackRequest(t,
+		// this string has length 250 BYTES, but just 120 characters
+		"ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů",
+		"Error during validating param 'message' with value 'ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ěščřžýáíéů ě�...'. Error: 'feedback message is longer than 255 bytes'")
 }
 
 func TestHTTPServer_GetVoteOnRule_BadRuleID(t *testing.T) {

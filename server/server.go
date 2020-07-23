@@ -45,7 +45,10 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"sync"
 
 	// we just have to import this package in order to expose pprof interface in debug mode
 	// disable "G108 (CWE-): Profiling endpoint is automatically exposed on /debug/pprof"
@@ -53,6 +56,7 @@ import (
 	_ "net/http/pprof"
 	"path/filepath"
 
+	httputils "github.com/RedHatInsights/insights-operator-utils/http"
 	"github.com/RedHatInsights/insights-operator-utils/responses"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
@@ -268,7 +272,7 @@ func (server *HTTPServer) Initialize() http.Handler {
 	log.Info().Msgf("Initializing HTTP server at '%s'", server.Config.Address)
 
 	router := mux.NewRouter().StrictSlash(true)
-	router.Use(server.LogRequest)
+	router.Use(httputils.LogRequest)
 
 	apiPrefix := server.Config.APIPrefix
 
@@ -296,11 +300,17 @@ func (server *HTTPServer) Initialize() http.Handler {
 }
 
 // Start starts server
-func (server *HTTPServer) Start() error {
+func (server *HTTPServer) Start(serverInstanceReady *sync.Cond) error {
 	address := server.Config.Address
 	log.Info().Msgf("Starting HTTP server at '%s'", address)
 	router := server.Initialize()
 	server.Serv = &http.Server{Addr: address, Handler: router}
+
+	if serverInstanceReady != nil {
+		serverInstanceReady.L.Lock()
+		serverInstanceReady.Broadcast()
+		serverInstanceReady.L.Unlock()
+	}
 
 	err := server.Serv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
@@ -313,5 +323,52 @@ func (server *HTTPServer) Start() error {
 
 // Stop stops server's execution
 func (server *HTTPServer) Stop(ctx context.Context) error {
+	if server.Serv == nil {
+		return fmt.Errorf("server.Serv is nil, nothing to stop")
+	}
+
 	return server.Serv.Shutdown(ctx)
+}
+
+// readFeedbackRequestBody parse request body and return object with message in it
+func (server *HTTPServer) readFeedbackRequestBody(writer http.ResponseWriter, request *http.Request) (string, bool) {
+	feedback, err := server.getFeedbackMessageFromBody(request)
+	if err != nil {
+		if _, ok := err.(*NoBodyError); ok {
+			return "", true
+		}
+
+		handleServerError(writer, err)
+		return "", false
+	}
+
+	return feedback, true
+}
+
+// getFeedbackMessageFromBody retrieves the feedback message from body of the request
+func (server *HTTPServer) getFeedbackMessageFromBody(request *http.Request) (string, error) {
+	var feedback types.FeedbackRequest
+
+	err := json.NewDecoder(request.Body).Decode(&feedback)
+	if err != nil {
+		if err == io.EOF {
+			err = &NoBodyError{}
+		}
+
+		return "", err
+	}
+
+	if len(feedback.Message) > server.Config.MaximumFeedbackMessageLength {
+		feedback.Message = feedback.Message[0:server.Config.MaximumFeedbackMessageLength] + "..."
+
+		return "", &types.ValidationError{
+			ParamName:  "message",
+			ParamValue: feedback.Message,
+			ErrString: fmt.Sprintf(
+				"feedback message is longer than %v bytes", server.Config.MaximumFeedbackMessageLength,
+			),
+		}
+	}
+
+	return feedback.Message, nil
 }
