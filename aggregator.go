@@ -42,6 +42,7 @@ import (
 	"github.com/RedHatInsights/insights-results-aggregator/conf"
 	"github.com/RedHatInsights/insights-results-aggregator/consumer"
 	"github.com/RedHatInsights/insights-results-aggregator/logger"
+	"github.com/RedHatInsights/insights-results-aggregator/metrics"
 	"github.com/RedHatInsights/insights-results-aggregator/migration"
 	"github.com/RedHatInsights/insights-results-aggregator/server"
 	"github.com/RedHatInsights/insights-results-aggregator/storage"
@@ -60,6 +61,7 @@ const (
 	// ExitStatusMigrationError is returned in case of an error while attempting to perform DB migrations
 	ExitStatusMigrationError
 	defaultConfigFilename = "config"
+	typeStr               = "type"
 
 	databasePreparationMessage = "database preparation exited with error code %v"
 	consumerExitedErrorMessage = "consumer exited with error code %v"
@@ -213,6 +215,11 @@ func startService() int {
 	var waitGroup sync.WaitGroup
 	exitCode := int32(ExitStatusOK)
 
+	metricsCfg := conf.GetMetricsConfiguration()
+	if metricsCfg.Namespace != "" {
+		metrics.AddMetricsWithNamespace(metricsCfg.Namespace)
+	}
+
 	prepDbExitCode := prepareDB()
 	if prepDbExitCode != ExitStatusOK {
 		log.Info().Msgf(databasePreparationMessage, prepDbExitCode)
@@ -298,7 +305,7 @@ func stopService() int {
 }
 
 func initInfoLog(msg string) {
-	log.Info().Str("type", "init").Msg(msg)
+	log.Info().Str(typeStr, "init").Msg(msg)
 }
 
 func printVersionInfo() {

@@ -166,6 +166,7 @@ list of clusters for given organization, and cluster health.</p>
 	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/conf&#34;</div><div class="operator"></div>
 	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/consumer&#34;</div><div class="operator"></div>
 	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/logger&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/metrics&#34;</div><div class="operator"></div>
 	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/migration&#34;</div><div class="operator"></div>
 	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/server&#34;</div><div class="operator"></div>
 	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/storage&#34;</div><div class="operator"></div>
@@ -209,6 +210,7 @@ list of clusters for given organization, and cluster health.</p>
 </td>
 	<td class="code"><pre><code>	<div class="ident">ExitStatusMigrationError</div><div class="operator"></div>
 	<div class="ident">defaultConfigFilename</div> <div class="operator">=</div> <div class="literal">&#34;config&#34;</div><div class="operator"></div>
+	<div class="ident">typeStr</div>               <div class="operator">=</div> <div class="literal">&#34;type&#34;</div><div class="operator"></div>
 
 	<div class="ident">databasePreparationMessage</div> <div class="operator">=</div> <div class="literal">&#34;database preparation exited with error code %v&#34;</div><div class="operator"></div>
 	<div class="ident">consumerExitedErrorMessage</div> <div class="operator">=</div> <div class="literal">&#34;consumer exited with error code %v&#34;</div><div class="operator"></div>
@@ -432,6 +434,11 @@ whether the close operation was successful or not.</p>
 	<div class="keyword">var</div> <div class="ident">waitGroup</div> <div class="ident">sync</div><div class="operator">.</div><div class="ident">WaitGroup</div><div class="operator"></div>
 	<div class="ident">exitCode</div> <div class="operator">:=</div> <div class="ident">int32</div><div class="operator">(</div><div class="ident">ExitStatusOK</div><div class="operator">)</div><div class="operator"></div>
 
+	<div class="ident">metricsCfg</div> <div class="operator">:=</div> <div class="ident">conf</div><div class="operator">.</div><div class="ident">GetMetricsConfiguration</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+	<div class="keyword">if</div> <div class="ident">metricsCfg</div><div class="operator">.</div><div class="ident">Namespace</div> <div class="operator">!=</div> <div class="literal">&#34;&#34;</div> <div class="operator">{</div>
+		<div class="ident">metrics</div><div class="operator">.</div><div class="ident">AddMetricsWithNamespace</div><div class="operator">(</div><div class="ident">metricsCfg</div><div class="operator">.</div><div class="ident">Namespace</div><div class="operator">)</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
 	<div class="ident">prepDbExitCode</div> <div class="operator">:=</div> <div class="ident">prepareDB</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
 	<div class="keyword">if</div> <div class="ident">prepDbExitCode</div> <div class="operator">!=</div> <div class="ident">ExitStatusOK</div> <div class="operator">{</div>
 		<div class="ident">log</div><div class="operator">.</div><div class="ident">Info</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msgf</div><div class="operator">(</div><div class="ident">databasePreparationMessage</div><div class="operator">,</div> <div class="ident">prepDbExitCode</div><div class="operator">)</div><div class="operator"></div>
@@ -532,7 +539,7 @@ whether the close operation was successful or not.</p>
 <div class="operator">}</div><div class="operator"></div>
 
 <div class="keyword">func</div> <div class="ident">initInfoLog</div><div class="operator">(</div><div class="ident">msg</div> <div class="ident">string</div><div class="operator">)</div> <div class="operator">{</div>
-	<div class="ident">log</div><div class="operator">.</div><div class="ident">Info</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Str</div><div class="operator">(</div><div class="literal">&#34;type&#34;</div><div class="operator">,</div> <div class="literal">&#34;init&#34;</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="ident">msg</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">log</div><div class="operator">.</div><div class="ident">Info</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Str</div><div class="operator">(</div><div class="ident">typeStr</div><div class="operator">,</div> <div class="literal">&#34;init&#34;</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="ident">msg</div><div class="operator">)</div><div class="operator"></div>
 <div class="operator">}</div><div class="operator"></div>
 
 <div class="keyword">func</div> <div class="ident">printVersionInfo</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">{</div>
