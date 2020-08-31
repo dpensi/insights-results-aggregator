@@ -149,9 +149,9 @@ func TestLoadConfigurationOverrideFromEnv(t *testing.T) {
 	}, storageCfg)
 }
 
-// TestLoadOrganizationWhitelist tests if the whitelist CSV file gets loaded properly
-func TestLoadOrganizationWhitelist(t *testing.T) {
-	expectedWhitelist := mapset.NewSetWith(
+// TestLoadOrganizationAllowlist tests if the allowlist CSV file gets loaded properly
+func TestLoadOrganizationAllowlist(t *testing.T) {
+	expectedAllowlist := mapset.NewSetWith(
 		types.OrgID(1),
 		types.OrgID(2),
 		types.OrgID(3),
@@ -159,35 +159,35 @@ func TestLoadOrganizationWhitelist(t *testing.T) {
 		types.OrgID(656485),
 	)
 
-	orgWhitelist := conf.GetOrganizationWhitelist()
-	if equal := orgWhitelist.Equal(expectedWhitelist); !equal {
+	orgAllowlist := conf.GetOrganizationAllowlist()
+	if equal := orgAllowlist.Equal(expectedAllowlist); !equal {
 		t.Errorf(
-			"Org whitelist did not load properly. Order of elements does not matter. Expected %v. Got %v",
-			expectedWhitelist, orgWhitelist,
+			"Org allowlist did not load properly. Order of elements does not matter. Expected %v. Got %v",
+			expectedAllowlist, orgAllowlist,
 		)
 	}
 }
 
-// TestLoadWhitelistFromCSVExtraParam tests incorrect CSV format
-func TestLoadWhitelistFromCSVExtraParam(t *testing.T) {
+// TestLoadAllowlistFromCSVExtraParam tests incorrect CSV format
+func TestLoadAllowlistFromCSVExtraParam(t *testing.T) {
 	extraParamCSV := `OrgID
 1,2
 3
 `
 	r := strings.NewReader(extraParamCSV)
-	_, err := conf.LoadWhitelistFromCSV(r)
+	_, err := conf.LoadAllowlistFromCSV(r)
 	assert.EqualError(t, err, "error reading CSV file: record on line 2: wrong number of fields")
 }
 
-// TestLoadWhitelistFromCSVNonInt tests non-integer ID in CSV
-func TestLoadWhitelistFromCSVNonInt(t *testing.T) {
+// TestLoadAllowlistFromCSVNonInt tests non-integer ID in CSV
+func TestLoadAllowlistFromCSVNonInt(t *testing.T) {
 	nonIntIDCSV := `OrgID
 str
 3
 `
 	r := strings.NewReader(nonIntIDCSV)
-	_, err := conf.LoadWhitelistFromCSV(r)
-	assert.EqualError(t, err, "organization ID on line 2 in whitelist CSV is not numerical. Found value: str")
+	_, err := conf.LoadAllowlistFromCSV(r)
+	assert.EqualError(t, err, "organization ID on line 2 in allowlist CSV is not numerical. Found value: str")
 }
 
 func TestLoadConfigurationFromFile(t *testing.T) {
@@ -196,13 +196,13 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 		topic = "platform.results.ccx"
 		group = "aggregator"
 		enabled = true
-		enable_org_whitelist = true
+		enable_org_allowlist = true
 
 		[content]
 		path = "/rules-content"
 
 		[processing]
-		org_whitelist_file = "org_whitelist.csv"
+		org_allowlist_file = "org_allowlist.csv"
 
 		[server]
 		address = ":8080"
@@ -247,11 +247,11 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 		MaximumFeedbackMessageLength: 255,
 	}, conf.GetServerConfiguration())
 
-	orgWhiteList := conf.GetOrganizationWhitelist()
+	orgAllowlist := conf.GetOrganizationAllowlist()
 
 	assert.True(
 		t,
-		orgWhiteList.Equal(mapset.NewSetWith(
+		orgAllowlist.Equal(mapset.NewSetWith(
 			types.OrgID(1),
 			types.OrgID(2),
 			types.OrgID(3),
@@ -317,11 +317,11 @@ func TestLoadConfigurationFromEnv(t *testing.T) {
 		MaximumFeedbackMessageLength: 255,
 	}, conf.GetServerConfiguration())
 
-	orgWhiteList := conf.GetOrganizationWhitelist()
+	orgAllowlist := conf.GetOrganizationAllowlist()
 
 	assert.True(
 		t,
-		orgWhiteList.Equal(mapset.NewSetWith(
+		orgAllowlist.Equal(mapset.NewSetWith(
 			types.OrgID(1),
 			types.OrgID(2),
 			types.OrgID(3),
@@ -409,7 +409,7 @@ func setEnvVariables(t *testing.T) {
 	mustSetEnv(t, "INSIGHTS_RESULTS_AGGREGATOR__SERVER__API_SPEC_FILE", "openapi.json")
 	mustSetEnv(t, "INSIGHTS_RESULTS_AGGREGATOR__SERVER__DEBUG", "true")
 
-	mustSetEnv(t, "INSIGHTS_RESULTS_AGGREGATOR__PROCESSING__ORG_WHITELIST", "org_whitelist.csv")
+	mustSetEnv(t, "INSIGHTS_RESULTS_AGGREGATOR__PROCESSING__ORG_ALLOWLIST", "org_allowlist.csv")
 
 	mustSetEnv(t, "INSIGHTS_RESULTS_AGGREGATOR__STORAGE__DB_DRIVER", "sqlite3")
 	mustSetEnv(t, "INSIGHTS_RESULTS_AGGREGATOR__STORAGE__SQLITE_DATASOURCE", ":memory:")

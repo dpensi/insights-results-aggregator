@@ -18,10 +18,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
+	httputils "github.com/RedHatInsights/insights-operator-utils/http"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
@@ -29,11 +29,16 @@ import (
 	"github.com/RedHatInsights/insights-results-aggregator/types"
 )
 
+var (
+	readRuleID   = httputils.ReadRuleID
+	readErrorKey = httputils.ReadErrorKey
+)
+
 // getRouterParam retrieves parameter from URL like `/organization/{org_id}`
 func getRouterParam(request *http.Request, paramName string) (string, error) {
 	value, found := mux.Vars(request)[paramName]
 	if !found {
-		return "", &RouterMissingParamError{paramName: paramName}
+		return "", &RouterMissingParamError{ParamName: paramName}
 	}
 
 	return value, nil
@@ -50,17 +55,17 @@ func getRouterPositiveIntParam(request *http.Request, paramName string) (uint64,
 	uintValue, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
 		return 0, &RouterParsingError{
-			paramName:  paramName,
-			paramValue: value,
-			errString:  "unsigned integer expected",
+			ParamName:  paramName,
+			ParamValue: value,
+			ErrString:  "unsigned integer expected",
 		}
 	}
 
 	if uintValue == 0 {
 		return 0, &RouterParsingError{
-			paramName:  paramName,
-			paramValue: value,
-			errString:  "positive value expected",
+			ParamName:  paramName,
+			ParamValue: value,
+			ErrString:  "positive value expected",
 		}
 	}
 
@@ -76,7 +81,7 @@ func validateClusterName(clusterName string) (types.ClusterName, error) {
 		log.Error().Err(err).Msg(message)
 
 		return "", &RouterParsingError{
-			paramName: "cluster", paramValue: clusterName, errString: err.Error(),
+			ParamName: "cluster", ParamValue: clusterName, ErrString: err.Error(),
 		}
 	}
 
@@ -122,7 +127,7 @@ func readUserID(writer http.ResponseWriter, request *http.Request) (types.UserID
 
 	userID = strings.TrimSpace(userID)
 	if len(userID) == 0 {
-		handleServerError(writer, &RouterMissingParamError{paramName: "user_id"})
+		handleServerError(writer, &RouterMissingParamError{ParamName: "user_id"})
 		return "", false
 	}
 
@@ -161,7 +166,7 @@ func checkPermissions(writer http.ResponseWriter, request *http.Request, orgID t
 		if identity.Internal.OrgID != orgID {
 			const message = "You have no permissions to get or change info about this organization"
 			log.Error().Msg(message)
-			handleServerError(writer, &AuthenticationError{errString: message})
+			handleServerError(writer, &AuthenticationError{ErrString: message})
 			return errors.New(message)
 		}
 	}
@@ -207,9 +212,9 @@ func readOrganizationIDs(writer http.ResponseWriter, request *http.Request) ([]t
 		orgInt, err := strconv.ParseUint(orgStr, 10, 64)
 		if err != nil {
 			handleServerError(writer, &RouterParsingError{
-				paramName:  "organizations",
-				paramValue: orgStr,
-				errString:  "integer array expected",
+				ParamName:  "organizations",
+				ParamValue: orgStr,
+				ErrString:  "integer array expected",
 			})
 			return []types.OrgID{}, err
 		}
@@ -217,45 +222,6 @@ func readOrganizationIDs(writer http.ResponseWriter, request *http.Request) ([]t
 	}
 
 	return organizationsConverted, nil
-}
-
-func readRuleID(writer http.ResponseWriter, request *http.Request) (types.RuleID, bool) {
-	ruleID, err := getRouterParam(request, "rule_id")
-	if err != nil {
-		const message = "unable to get rule id"
-		log.Error().Err(err).Msg(message)
-		handleServerError(writer, err)
-		return types.RuleID(0), false
-	}
-
-	ruleIDValidator := regexp.MustCompile(`^[a-zA-Z_0-9.]+$`)
-
-	isRuleIDValid := ruleIDValidator.Match([]byte(ruleID))
-
-	if !isRuleIDValid {
-		err = fmt.Errorf("invalid rule ID, it must contain only from latin characters, number, underscores or dots")
-		log.Error().Err(err)
-		handleServerError(writer, &RouterParsingError{
-			paramName:  "rule_id",
-			paramValue: ruleID,
-			errString:  err.Error(),
-		})
-		return types.RuleID(0), false
-	}
-
-	return types.RuleID(ruleID), true
-}
-
-func readErrorKey(writer http.ResponseWriter, request *http.Request) (types.ErrorKey, error) {
-	errorKey, err := getRouterParam(request, "error_key")
-	if err != nil {
-		const message = "unable to get error_key"
-		log.Error().Err(err).Msg(message)
-		handleServerError(writer, err)
-		return types.ErrorKey(0), err
-	}
-
-	return types.ErrorKey(errorKey), nil
 }
 
 // readClusterRuleUserParams gets cluster_name, rule_id and user_id from current request

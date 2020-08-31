@@ -41,7 +41,7 @@ const (
 )
 
 var (
-	testOrgWhiteList = mapset.NewSetWith(testdata.OrgID)
+	testOrgAllowlist = mapset.NewSetWith(testdata.OrgID)
 )
 
 func init() {
@@ -73,9 +73,9 @@ func getCounterVecValue(counterVec *prometheus.CounterVec, labels map[string]str
 
 //TestConsumedMessagesMetric tests that consumed messages metric works
 func TestConsumedMessagesMetric(t *testing.T) {
-	helpers.RunTestWithTimeout(t, func(t *testing.T) {
+	helpers.RunTestWithTimeout(t, func(t testing.TB) {
 		mockConsumer, closer := ira_helpers.MustGetMockKafkaConsumerWithExpectedMessages(
-			t, testTopicName, testOrgWhiteList, []string{testdata.ConsumerMessage, testdata.ConsumerMessage},
+			t, testTopicName, testOrgAllowlist, []string{testdata.ConsumerMessage, testdata.ConsumerMessage},
 		)
 		defer closer()
 
