@@ -51,8 +51,8 @@ func (*NoopStorage) ReadReportForCluster(types.OrgID, types.ClusterName) ([]type
 	return []types.RuleOnReport{}, "", nil
 }
 
-// ReadSingleRule noop
-func (*NoopStorage) ReadSingleRule(types.OrgID, types.ClusterName, types.RuleID, types.ErrorKey) (string, error) {
+// ReadSingleRuleTemplateData noop
+func (*NoopStorage) ReadSingleRuleTemplateData(types.OrgID, types.ClusterName, types.RuleID, types.ErrorKey) (interface{}, error) {
 	return "", nil
 }
 
@@ -208,6 +208,13 @@ func (*NoopStorage) GetUserFeedbackOnRules(
 func (*NoopStorage) GetRuleWithContent(
 	types.RuleID, types.ErrorKey,
 ) (*types.RuleWithContent, error) {
+	return nil, nil
+}
+
+// GetUserDisableFeedbackOnRules noop
+func (*NoopStorage) GetUserDisableFeedbackOnRules(
+	types.ClusterName, []types.RuleOnReport, types.UserID,
+) (map[types.RuleID]UserFeedbackOnRule, error) {
 	return nil, nil
 }
 

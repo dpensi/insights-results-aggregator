@@ -15,17 +15,18 @@
 package server_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"testing"
 	"time"
 
+	operator_utils_types "github.com/RedHatInsights/insights-operator-utils/types"
 	"github.com/RedHatInsights/insights-results-aggregator-data/testdata"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/RedHatInsights/insights-results-aggregator/server"
 	"github.com/RedHatInsights/insights-results-aggregator/tests/helpers"
-	"github.com/RedHatInsights/insights-results-aggregator/types"
 )
 
 func TestReadReportForClusterNonIntOrgID(t *testing.T) {
@@ -117,52 +118,6 @@ func TestReadReportDBError(t *testing.T) {
 	}, &helpers.APIResponse{
 		StatusCode: http.StatusInternalServerError,
 		Body:       `{"status":"Internal Server Error"}`,
-	})
-}
-
-func TestHttpServer_readSingleRule_BadReport(t *testing.T) {
-	badReport := `{
-		"system": {
-			"metadata": {},
-			"hostname": null
-		},
-		"reports": [{
-			"component": "` + string(testdata.Rule1ID) + `",
-			"key": "` + testdata.ErrorKey1 + `",
-			"details": "not-json"
-		}],
-		"fingerprints": [],
-		"skips": [],
-		"info": []
-}`
-	badHitRules := []types.ReportItem{
-		{
-			Module:       testdata.Rule1ID,
-			ErrorKey:     testdata.ErrorKey1,
-			TemplateData: json.RawMessage("not-json"),
-		},
-	}
-
-	mockStorage, closer := helpers.MustGetMockStorage(t, true)
-	defer closer()
-
-	err := mockStorage.WriteReportForCluster(
-		testdata.OrgID, testdata.ClusterName, types.ClusterReport(badReport), badHitRules, testdata.LastCheckedAt, testdata.KafkaOffset,
-	)
-	helpers.FailOnError(t, err)
-
-	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
-		Method:   http.MethodGet,
-		Endpoint: server.RuleEndpoint,
-		EndpointArgs: []interface{}{
-			testdata.OrgID,
-			testdata.ClusterName,
-			testdata.UserID,
-			fmt.Sprintf("%v|%v", testdata.Rule1ID, testdata.ErrorKey1),
-		},
-	}, &helpers.APIResponse{
-		StatusCode: http.StatusBadRequest,
-		Body:       `{ "status": "invalid character 'o' in literal null (expecting 'u')" }`,
 	})
 }
 
@@ -409,5 +364,88 @@ func TestReadReportDisableRuleMultipleUsers(t *testing.T) {
 		StatusCode:  http.StatusOK,
 		Body:        testdata.Report2RulesEnabledRulesExpectedResponse,
 		BodyChecker: helpers.AssertReportResponsesEqual,
+	})
+}
+
+func TestReadReport_RuleDisableFeedback(t *testing.T) {
+	mockStorage, closer := helpers.MustGetMockStorage(t, true)
+	defer closer()
+
+	err := mockStorage.WriteReportForCluster(
+		testdata.OrgID,
+		testdata.ClusterName,
+		testdata.Report2Rules,
+		testdata.Report2RulesParsed,
+		testdata.LastCheckedAt,
+		testdata.KafkaOffset,
+	)
+	helpers.FailOnError(t, err)
+
+	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
+		Method:       http.MethodGet,
+		Endpoint:     server.ReportEndpoint,
+		EndpointArgs: []interface{}{testdata.OrgID, testdata.ClusterName, testdata.UserID},
+	}, &helpers.APIResponse{
+		StatusCode:  http.StatusOK,
+		Body:        testdata.Report2RulesEnabledRulesExpectedResponse,
+		BodyChecker: helpers.AssertReportResponsesEqual,
+	})
+
+	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
+		Method:       http.MethodPut,
+		Endpoint:     server.DisableRuleForClusterEndpoint,
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
+	}, &helpers.APIResponse{
+		StatusCode: http.StatusOK,
+		Body:       `{"status": "ok"}`,
+	})
+
+	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
+		Method:       http.MethodPost,
+		Endpoint:     server.DisableRuleFeedbackEndpoint,
+		EndpointArgs: []interface{}{testdata.ClusterName, testdata.Rule1ID, testdata.UserID},
+		Body:         `{"message": "test"}`,
+	}, &helpers.APIResponse{
+		StatusCode: http.StatusOK,
+		Body:       `{"status": "ok", "message": "test"}`,
+	})
+
+	helpers.AssertAPIRequest(t, mockStorage, nil, &helpers.APIRequest{
+		Method:       http.MethodGet,
+		Endpoint:     server.ReportEndpoint,
+		EndpointArgs: []interface{}{testdata.OrgID, testdata.ClusterName, testdata.UserID},
+	}, &helpers.APIResponse{
+		StatusCode: http.StatusOK,
+		Body:       testdata.Report2RulesDisabledRule1WithFeedbackExpectedResponse,
+		BodyChecker: func(t testing.TB, expected, got []byte) {
+			helpers.AssertReportResponsesEqualCustomElementsChecker(
+				t, expected, got,
+				func(
+					t testing.TB,
+					expectedRules []operator_utils_types.RuleOnReport,
+					gotRules []operator_utils_types.RuleOnReport,
+				) {
+					assert.Equal(t, len(expectedRules), len(gotRules))
+
+					sort.Slice(expectedRules, func(i, j int) bool {
+						return expectedRules[i].Module > expectedRules[j].Module
+					})
+					sort.Slice(gotRules, func(i, j int) bool {
+						return gotRules[i].Module > gotRules[j].Module
+					})
+
+					for i := 0; i < len(expectedRules); i++ {
+						expectedRule := &expectedRules[i]
+						gotRule := &gotRules[i]
+						assert.Equal(t, expectedRule.Module, gotRule.Module)
+						assert.Equal(t, expectedRule.Disabled, gotRule.Disabled)
+						assert.Equal(t, expectedRule.DisableFeedback, gotRule.DisableFeedback)
+						assert.Equal(t, expectedRule.TemplateData, gotRule.TemplateData)
+						assert.Equal(t, expectedRule.ErrorKey, gotRule.ErrorKey)
+						assert.Equal(t, expectedRule.UserVote, gotRule.UserVote)
+					}
+				},
+			)
+		},
 	})
 }
