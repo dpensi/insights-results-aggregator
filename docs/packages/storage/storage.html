@@ -153,6 +153,7 @@ DataSource - specification of data source. The content of this parameter depends
 <div class="keyword">import</div> <div class="operator">(</div>
 	<div class="literal">&#34;database/sql&#34;</div><div class="operator"></div>
 	<div class="ident">sql_driver</div> <div class="literal">&#34;database/sql/driver&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;encoding/json&#34;</div><div class="operator"></div>
 	<div class="literal">&#34;fmt&#34;</div><div class="operator"></div>
 	<div class="literal">&#34;time&#34;</div><div class="operator"></div>
 
@@ -182,9 +183,13 @@ DataSource - specification of data source. The content of this parameter depends
 	<div class="ident">ReadReportForCluster</div><div class="operator">(</div>
 		<div class="ident">orgID</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator">,</div> <div class="ident">clusterName</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">)</div> <div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">RuleOnReport</div><div class="operator">,</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">Timestamp</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">,</div>
 	<div class="operator">)</div><div class="operator"></div>
-	<div class="ident">ReadSingleRule</div><div class="operator">(</div>
+	<div class="ident">ReadReportsForClusters</div><div class="operator">(</div>
+		<div class="ident">clusterNames</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">)</div> <div class="operator">(</div><div class="keyword">map</div><div class="operator">[</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterReport</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">ReadOrgIDsForClusters</div><div class="operator">(</div>
+		<div class="ident">clusterNames</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">)</div> <div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">ReadSingleRuleTemplateData</div><div class="operator">(</div>
 		<div class="ident">orgID</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator">,</div> <div class="ident">clusterName</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">,</div> <div class="ident">ruleID</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleID</div><div class="operator">,</div> <div class="ident">errorKey</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ErrorKey</div><div class="operator">,</div>
-	<div class="operator">)</div> <div class="operator">(</div><div class="ident">string</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div><div class="operator"></div>
+	<div class="operator">)</div> <div class="operator">(</div><div class="keyword">interface</div><div class="operator">{</div><div class="operator">}</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div><div class="operator"></div>
 	<div class="ident">ReadReportForClusterByClusterName</div><div class="operator">(</div><div class="ident">clusterName</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">)</div> <div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">RuleOnReport</div><div class="operator">,</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">Timestamp</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div><div class="operator"></div>
 	<div class="ident">GetLatestKafkaOffset</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">(</div><div class="ident">types</div><div class="operator">.</div><div class="ident">KafkaOffset</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div><div class="operator"></div>
 	<div class="ident">WriteReportForCluster</div><div class="operator">(</div>
@@ -535,31 +540,245 @@ tasks necessary for further service operation.</p>
 	<div class="keyword">return</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator">(</div><div class="ident">orgID</div><div class="operator">)</div><div class="operator">,</div> <div class="ident">nil</div><div class="operator"></div>
 <div class="operator">}</div><div class="operator"></div>
 
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>parseTemplateData parses template data and returns a json raw message if it's a json or a string otherwise</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">parseTemplateData</div><div class="operator">(</div><div class="ident">templateData</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">byte</div><div class="operator">)</div> <div class="keyword">interface</div><div class="operator">{</div><div class="operator">}</div> <div class="operator">{</div>
+	<div class="keyword">var</div> <div class="ident">templateDataJSON</div> <div class="ident">json</div><div class="operator">.</div><div class="ident">RawMessage</div><div class="operator"></div>
+
+	<div class="ident">err</div> <div class="operator">:=</div> <div class="ident">json</div><div class="operator">.</div><div class="ident">Unmarshal</div><div class="operator">(</div><div class="ident">templateData</div><div class="operator">,</div> <div class="operator">&amp;</div><div class="ident">templateDataJSON</div><div class="operator">)</div><div class="operator"></div>
+	<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+		<div class="ident">log</div><div class="operator">.</div><div class="ident">Warn</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Err</div><div class="operator">(</div><div class="ident">err</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msgf</div><div class="operator">(</div><div class="literal">&#34;unable to parse template data as json&#34;</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">return</div> <div class="ident">templateData</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+	<div class="keyword">return</div> <div class="ident">templateDataJSON</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
 <div class="keyword">func</div> <div class="ident">parseRuleRows</div><div class="operator">(</div><div class="ident">rows</div> <div class="operator">*</div><div class="ident">sql</div><div class="operator">.</div><div class="ident">Rows</div><div class="operator">)</div> <div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">RuleOnReport</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div> <div class="operator">{</div>
 	<div class="ident">report</div> <div class="operator">:=</div> <div class="ident">make</div><div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">RuleOnReport</div><div class="operator">,</div> <div class="literal">0</div><div class="operator">)</div><div class="operator"></div>
 
 	<div class="keyword">for</div> <div class="ident">rows</div><div class="operator">.</div><div class="ident">Next</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">{</div>
 		<div class="keyword">var</div> <div class="operator">(</div>
-			<div class="ident">templateData</div> <div class="ident">string</div><div class="operator"></div>
-			<div class="ident">ruleFQDN</div>     <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleID</div><div class="operator"></div>
-			<div class="ident">errorKey</div>     <div class="ident">types</div><div class="operator">.</div><div class="ident">ErrorKey</div><div class="operator"></div>
+			<div class="ident">templateDataBytes</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">byte</div><div class="operator"></div>
+			<div class="ident">ruleFQDN</div>          <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleID</div><div class="operator"></div>
+			<div class="ident">errorKey</div>          <div class="ident">types</div><div class="operator">.</div><div class="ident">ErrorKey</div><div class="operator"></div>
 		<div class="operator">)</div><div class="operator"></div>
 
-		<div class="ident">err</div> <div class="operator">:=</div> <div class="ident">rows</div><div class="operator">.</div><div class="ident">Scan</div><div class="operator">(</div><div class="operator">&amp;</div><div class="ident">templateData</div><div class="operator">,</div> <div class="operator">&amp;</div><div class="ident">ruleFQDN</div><div class="operator">,</div> <div class="operator">&amp;</div><div class="ident">errorKey</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">err</div> <div class="operator">:=</div> <div class="ident">rows</div><div class="operator">.</div><div class="ident">Scan</div><div class="operator">(</div><div class="operator">&amp;</div><div class="ident">templateDataBytes</div><div class="operator">,</div> <div class="operator">&amp;</div><div class="ident">ruleFQDN</div><div class="operator">,</div> <div class="operator">&amp;</div><div class="ident">errorKey</div><div class="operator">)</div><div class="operator"></div>
 		<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
 			<div class="ident">log</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Err</div><div class="operator">(</div><div class="ident">err</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="literal">&#34;ReportListForCluster&#34;</div><div class="operator">)</div><div class="operator"></div>
 			<div class="keyword">return</div> <div class="ident">report</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
 		<div class="operator">}</div><div class="operator"></div>
 
+		<div class="ident">templateData</div> <div class="operator">:=</div> <div class="ident">parseTemplateData</div><div class="operator">(</div><div class="ident">templateDataBytes</div><div class="operator">)</div><div class="operator"></div>
 		<div class="ident">rule</div> <div class="operator">:=</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleOnReport</div><div class="operator">{</div>
 			<div class="ident">Module</div><div class="operator">:</div>       <div class="ident">ruleFQDN</div><div class="operator">,</div>
 			<div class="ident">ErrorKey</div><div class="operator">:</div>     <div class="ident">errorKey</div><div class="operator">,</div>
 			<div class="ident">TemplateData</div><div class="operator">:</div> <div class="ident">templateData</div><div class="operator">,</div>
 		<div class="operator">}</div><div class="operator"></div>
+
 		<div class="ident">report</div> <div class="operator">=</div> <div class="ident">append</div><div class="operator">(</div><div class="ident">report</div><div class="operator">,</div> <div class="ident">rule</div><div class="operator">)</div><div class="operator"></div>
 	<div class="operator">}</div><div class="operator"></div>
 
 	<div class="keyword">return</div> <div class="ident">report</div><div class="operator">,</div> <div class="ident">nil</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>constructInClausule is a helper function to construct <code>in</code> clausule for SQL
+statement.</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">constructInClausule</div><div class="operator">(</div><div class="ident">howMany</div> <div class="ident">int</div><div class="operator">)</div> <div class="ident">string</div> <div class="operator">{</div>
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>construct the <code>in</code> clausule in SQL query statement</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">inClausule</div> <div class="operator">:=</div> <div class="literal">&#34;$1&#34;</div><div class="operator"></div>
+	<div class="keyword">for</div> <div class="ident">i</div> <div class="operator">:=</div> <div class="literal">2</div><div class="operator">;</div> <div class="ident">i</div> <div class="operator">&lt;=</div> <div class="ident">howMany</div><div class="operator">;</div> <div class="ident">i</div><div class="operator">&#43;&#43;</div> <div class="operator">{</div>
+		<div class="ident">inClausule</div> <div class="operator">&#43;=</div> <div class="ident">fmt</div><div class="operator">.</div><div class="ident">Sprintf</div><div class="operator">(</div><div class="literal">&#34;,$%d&#34;</div><div class="operator">,</div> <div class="ident">i</div><div class="operator">)</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+	<div class="keyword">return</div> <div class="ident">inClausule</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>argsWithClusterNames is a helper function to construct arguments for SQL
+statement.</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">argsWithClusterNames</div><div class="operator">(</div><div class="ident">clusterNames</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">)</div> <div class="operator">[</div><div class="operator">]</div><div class="keyword">interface</div><div class="operator">{</div><div class="operator">}</div> <div class="operator">{</div>
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>prepare arguments</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">args</div> <div class="operator">:=</div> <div class="ident">make</div><div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="keyword">interface</div><div class="operator">{</div><div class="operator">}</div><div class="operator">,</div> <div class="ident">len</div><div class="operator">(</div><div class="ident">clusterNames</div><div class="operator">)</div><div class="operator">)</div><div class="operator"></div>
+
+	<div class="keyword">for</div> <div class="ident">i</div><div class="operator">,</div> <div class="ident">clusterName</div> <div class="operator">:=</div> <div class="keyword">range</div> <div class="ident">clusterNames</div> <div class="operator">{</div>
+		<div class="ident">args</div><div class="operator">[</div><div class="ident">i</div><div class="operator">]</div> <div class="operator">=</div> <div class="ident">clusterName</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+	<div class="keyword">return</div> <div class="ident">args</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>ReadOrgIDsForClusters read organization IDs for given list of cluster names.</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="operator">(</div><div class="ident">storage</div> <div class="ident">DBStorage</div><div class="operator">)</div> <div class="ident">ReadOrgIDsForClusters</div><div class="operator">(</div><div class="ident">clusterNames</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">)</div> <div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div> <div class="operator">{</div>
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>stub for return value</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">ids</div> <div class="operator">:=</div> <div class="ident">make</div><div class="operator">(</div><div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator">,</div> <div class="literal">0</div><div class="operator">)</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>prepare arguments</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">args</div> <div class="operator">:=</div> <div class="ident">argsWithClusterNames</div><div class="operator">(</div><div class="ident">clusterNames</div><div class="operator">)</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>construct the <code>in</code> clausule in SQL query statement</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">inClausule</div> <div class="operator">:=</div> <div class="ident">constructInClausule</div><div class="operator">(</div><div class="ident">len</div><div class="operator">(</div><div class="ident">clusterNames</div><div class="operator">)</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">query</div> <div class="operator">:=</div> <div class="literal">&#34;SELECT DISTINCT org_id FROM report WHERE cluster in (&#34;</div> <div class="operator">&#43;</div> <div class="ident">inClausule</div> <div class="operator">&#43;</div> <div class="literal">&#34;);&#34;</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>select results from the database</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">rows</div><div class="operator">,</div> <div class="ident">err</div> <div class="operator">:=</div> <div class="ident">storage</div><div class="operator">.</div><div class="ident">connection</div><div class="operator">.</div><div class="ident">Query</div><div class="operator">(</div><div class="ident">query</div><div class="operator">,</div> <div class="ident">args</div><div class="operator">...</div><div class="operator">)</div><div class="operator"></div>
+	<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+		<div class="ident">log</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Err</div><div class="operator">(</div><div class="ident">err</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="literal">&#34;query to get org ids&#34;</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">return</div> <div class="ident">ids</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>process results returned from database</p>
+</td>
+	<td class="code"><pre><code>	<div class="keyword">for</div> <div class="ident">rows</div><div class="operator">.</div><div class="ident">Next</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">{</div>
+		<div class="keyword">var</div> <div class="ident">orgID</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator"></div>
+
+		<div class="ident">err</div> <div class="operator">:=</div> <div class="ident">rows</div><div class="operator">.</div><div class="ident">Scan</div><div class="operator">(</div><div class="operator">&amp;</div><div class="ident">orgID</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+			<div class="ident">log</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Err</div><div class="operator">(</div><div class="ident">err</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="literal">&#34;read one org id&#34;</div><div class="operator">)</div><div class="operator"></div>
+			<div class="keyword">return</div> <div class="ident">ids</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+
+		<div class="ident">ids</div> <div class="operator">=</div> <div class="ident">append</div><div class="operator">(</div><div class="ident">ids</div><div class="operator">,</div> <div class="ident">orgID</div><div class="operator">)</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>everything seems ok -&gt; return ids</p>
+</td>
+	<td class="code"><pre><code>	<div class="keyword">return</div> <div class="ident">ids</div><div class="operator">,</div> <div class="ident">nil</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>ReadReportsForClusters function reads reports for given list of cluster
+names.</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="operator">(</div><div class="ident">storage</div> <div class="ident">DBStorage</div><div class="operator">)</div> <div class="ident">ReadReportsForClusters</div><div class="operator">(</div><div class="ident">clusterNames</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">)</div> <div class="operator">(</div><div class="keyword">map</div><div class="operator">[</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterReport</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div> <div class="operator">{</div>
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>stub for return value</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">reports</div> <div class="operator">:=</div> <div class="ident">make</div><div class="operator">(</div><div class="keyword">map</div><div class="operator">[</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">]</div><div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterReport</div><div class="operator">)</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>prepare arguments</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">args</div> <div class="operator">:=</div> <div class="ident">argsWithClusterNames</div><div class="operator">(</div><div class="ident">clusterNames</div><div class="operator">)</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>construct the <code>in</code> clausule in SQL query statement</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">inClausule</div> <div class="operator">:=</div> <div class="ident">constructInClausule</div><div class="operator">(</div><div class="ident">len</div><div class="operator">(</div><div class="ident">clusterNames</div><div class="operator">)</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">query</div> <div class="operator">:=</div> <div class="literal">&#34;SELECT cluster, report FROM report WHERE cluster in (&#34;</div> <div class="operator">&#43;</div> <div class="ident">inClausule</div> <div class="operator">&#43;</div> <div class="literal">&#34;);&#34;</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>select results from the database</p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">rows</div><div class="operator">,</div> <div class="ident">err</div> <div class="operator">:=</div> <div class="ident">storage</div><div class="operator">.</div><div class="ident">connection</div><div class="operator">.</div><div class="ident">Query</div><div class="operator">(</div><div class="ident">query</div><div class="operator">,</div> <div class="ident">args</div><div class="operator">...</div><div class="operator">)</div><div class="operator"></div>
+	<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+		<div class="keyword">return</div> <div class="ident">reports</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>process results returned from database</p>
+</td>
+	<td class="code"><pre><code>	<div class="keyword">for</div> <div class="ident">rows</div><div class="operator">.</div><div class="ident">Next</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">{</div>
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>convert into requested type</p>
+</td>
+	<td class="code"><pre><code>		<div class="keyword">var</div> <div class="operator">(</div>
+			<div class="ident">clusterName</div>   <div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator"></div>
+			<div class="ident">clusterReport</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterReport</div><div class="operator"></div>
+		<div class="operator">)</div><div class="operator"></div>
+
+		<div class="ident">err</div> <div class="operator">:=</div> <div class="ident">rows</div><div class="operator">.</div><div class="ident">Scan</div><div class="operator">(</div><div class="operator">&amp;</div><div class="ident">clusterName</div><div class="operator">,</div> <div class="operator">&amp;</div><div class="ident">clusterReport</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+			<div class="ident">log</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Err</div><div class="operator">(</div><div class="ident">err</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="literal">&#34;ReadReportsForClusters&#34;</div><div class="operator">)</div><div class="operator"></div>
+			<div class="keyword">return</div> <div class="ident">reports</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+
+		<div class="ident">reports</div><div class="operator">[</div><div class="ident">clusterName</div><div class="operator">]</div> <div class="operator">=</div> <div class="ident">clusterReport</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>everything seems ok -&gt; return reports</p>
+</td>
+	<td class="code"><pre><code>	<div class="keyword">return</div> <div class="ident">reports</div><div class="operator">,</div> <div class="ident">nil</div><div class="operator"></div>
 <div class="operator">}</div><div class="operator"></div>
 
 </code></pre></td>
@@ -600,12 +819,12 @@ tasks necessary for further service operation.</p>
       </tr>
       
       <tr class="section">
-	<td class="doc"><p>ReadSingleRule reads rule result (health status) for selected cluster</p>
+	<td class="doc"><p>ReadSingleRuleTemplateData reads template data for a single rule</p>
 </td>
-	<td class="code"><pre><code><div class="keyword">func</div> <div class="operator">(</div><div class="ident">storage</div> <div class="ident">DBStorage</div><div class="operator">)</div> <div class="ident">ReadSingleRule</div><div class="operator">(</div>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="operator">(</div><div class="ident">storage</div> <div class="ident">DBStorage</div><div class="operator">)</div> <div class="ident">ReadSingleRuleTemplateData</div><div class="operator">(</div>
 	<div class="ident">orgID</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">OrgID</div><div class="operator">,</div> <div class="ident">clusterName</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ClusterName</div><div class="operator">,</div> <div class="ident">ruleID</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleID</div><div class="operator">,</div> <div class="ident">errorKey</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ErrorKey</div><div class="operator">,</div>
-<div class="operator">)</div> <div class="operator">(</div><div class="ident">string</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div> <div class="operator">{</div>
-	<div class="keyword">var</div> <div class="ident">templateData</div> <div class="ident">string</div><div class="operator"></div>
+<div class="operator">)</div> <div class="operator">(</div><div class="keyword">interface</div><div class="operator">{</div><div class="operator">}</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div> <div class="operator">{</div>
+	<div class="keyword">var</div> <div class="ident">templateDataBytes</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">byte</div><div class="operator"></div>
 
 	<div class="ident">err</div> <div class="operator">:=</div> <div class="ident">storage</div><div class="operator">.</div><div class="ident">connection</div><div class="operator">.</div><div class="ident">QueryRow</div><div class="operator">(</div><div class="literal">`
 		SELECT template_data FROM rule_hit
@@ -615,10 +834,10 @@ tasks necessary for further service operation.</p>
 		<div class="ident">clusterName</div><div class="operator">,</div>
 		<div class="ident">ruleID</div><div class="operator">,</div>
 		<div class="ident">errorKey</div><div class="operator">,</div>
-	<div class="operator">)</div><div class="operator">.</div><div class="ident">Scan</div><div class="operator">(</div><div class="operator">&amp;</div><div class="ident">templateData</div><div class="operator">)</div><div class="operator"></div>
+	<div class="operator">)</div><div class="operator">.</div><div class="ident">Scan</div><div class="operator">(</div><div class="operator">&amp;</div><div class="ident">templateDataBytes</div><div class="operator">)</div><div class="operator"></div>
 	<div class="ident">err</div> <div class="operator">=</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">ConvertDBError</div><div class="operator">(</div><div class="ident">err</div><div class="operator">,</div> <div class="operator">[</div><div class="operator">]</div><div class="keyword">interface</div><div class="operator">{</div><div class="operator">}</div><div class="operator">{</div><div class="ident">orgID</div><div class="operator">,</div> <div class="ident">clusterName</div><div class="operator">,</div> <div class="ident">ruleID</div><div class="operator">,</div> <div class="ident">errorKey</div><div class="operator">}</div><div class="operator">)</div><div class="operator"></div>
 
-	<div class="keyword">return</div> <div class="ident">templateData</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
+	<div class="keyword">return</div> <div class="ident">parseTemplateData</div><div class="operator">(</div><div class="ident">templateDataBytes</div><div class="operator">)</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
 <div class="operator">}</div><div class="operator"></div>
 
 </code></pre></td>

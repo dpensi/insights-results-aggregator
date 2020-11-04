@@ -38,7 +38,12 @@ const (
 	// ContentTypeText represents MIME type for plain text format
 	ContentTypeText = "text/plain; charset=utf-8"
 
+	// unknownOrganizationID represents ID of inknown organization
+	unknownOrganizationID = "100000"
+
 	knownClusterForOrganization1   = "00000000-0000-0000-0000-000000000000"
+	knownCluster2ForOrganization1  = "00000000-0000-0000-ffff-000000000000"
+	knownCluster3ForOrganization1  = "00000000-0000-0000-0000-ffffffffffff"
 	unknownClusterForOrganization1 = "00000000-0000-0000-0000-000000000001"
 )
 
@@ -121,5 +126,12 @@ func checkGetEndpointByOtherMethods(endpoint string, includingOptions bool) {
 func checkOkStatusResponse(f *frisby.Frisby, response ClustersResponse) {
 	if response.Status != "ok" {
 		f.AddError(fmt.Sprintf("Expected status is 'ok', but got '%s' instead", response.Status))
+	}
+}
+
+// checkErrorStatusResponse tests whether the response (JSON) contains status attribute not set to 'ok'
+func checkErrorStatusResponse(f *frisby.Frisby, response StatusOnlyResponse) {
+	if response.Status == "ok" {
+		f.AddError(fmt.Sprintf("Expected error status, but got '%s' instead", response.Status))
 	}
 }
