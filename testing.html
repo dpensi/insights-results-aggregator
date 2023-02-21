@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Testing | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Testing" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/testing.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/testing.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/testing.html","@type":"WebPage","headline":"Testing","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 class="no_toc" id="testing">Testing</h1>
+
+<h2 class="no_toc text-delta" id="table-of-contents">Table of contents</h2>
+
+<ol id="markdown-toc">
+  <li><a href="#unit-tests" id="markdown-toc-unit-tests">Unit tests</a></li>
+  <li><a href="#all-integration-tests" id="markdown-toc-all-integration-tests">All integration tests</a>    <ol>
+      <li><a href="#only-rest-api-tests" id="markdown-toc-only-rest-api-tests">Only REST API tests</a></li>
+      <li><a href="#coverage-reports" id="markdown-toc-coverage-reports">Coverage reports</a></li>
+    </ol>
+  </li>
+  <li><a href="#openapi-checks" id="markdown-toc-openapi-checks">OpenAPI checks</a></li>
+</ol>
+
+<p>tl;dr: <code class="language-plaintext highlighter-rouge">make before_commit</code> will run most of the checks by magic, <code class="language-plaintext highlighter-rouge">VERBOSE=true make before_commit</code>
+will do the same but print more information about what it’s doing</p>
+
+<p>The following tests can be run to test your code in <code class="language-plaintext highlighter-rouge">insights-results-aggregator</code>.
+Detailed information about each type of test is included in the corresponding subsection:</p>
+
+<ol>
+  <li>Unit tests: checks behavior of all units in source code (methods, functions)</li>
+  <li>REST API Tests: test the real REST API of locally deployed application with database initialized
+with test data only</li>
+  <li>Integration tests: the integration tests for <code class="language-plaintext highlighter-rouge">insights-results-aggregator</code> service</li>
+  <li>Metrics tests: test whether Prometheus metrics are exposed as expected</li>
+</ol>
+
+<h2 id="unit-tests">Unit tests</h2>
+
+<p>Set of unit tests checks all units of source code. Additionally the code coverage is computed and
+displayed. Code coverage is stored in a file <code class="language-plaintext highlighter-rouge">coverage.out</code> and can be checked by a script named
+<code class="language-plaintext highlighter-rouge">check_coverage.sh</code>.</p>
+
+<p>To run unit tests use the following command:</p>
+
+<p><code class="language-plaintext highlighter-rouge">make test</code></p>
+
+<p>If you have postgres running on port from <code class="language-plaintext highlighter-rouge">./config-devel.toml</code> file it will also run tests against
+it</p>
+
+<h2 id="all-integration-tests">All integration tests</h2>
+
+<p><code class="language-plaintext highlighter-rouge">make integration_tests</code></p>
+
+<h3 id="only-rest-api-tests">Only REST API tests</h3>
+
+<p>Set of tests to check REST API of locally deployed application with database initialized with test
+data only.</p>
+
+<p>To run REST API tests use the following command:</p>
+
+<p><code class="language-plaintext highlighter-rouge">make rest_api_tests</code></p>
+
+<p>By default all logs from the application aren’t shown, if you want to see them, run:</p>
+
+<p><code class="language-plaintext highlighter-rouge">./test.sh rest_api --verbose</code></p>
+
+<h3 id="coverage-reports">Coverage reports</h3>
+
+<p>To make a coverage report you need to start <code class="language-plaintext highlighter-rouge">./make-coverage.sh</code> tool with one of these arguments:</p>
+
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">unit-sqlite</code> unit tests with sqlite in memory database</li>
+  <li><code class="language-plaintext highlighter-rouge">unit-posgres</code> unit tests with postgres database(don’t forget to start <code class="language-plaintext highlighter-rouge">docker-compose up</code> with the DB)</li>
+  <li><code class="language-plaintext highlighter-rouge">rest</code> REST API tests from <code class="language-plaintext highlighter-rouge">test.sh</code> file</li>
+  <li><code class="language-plaintext highlighter-rouge">integration</code> Any external tests, for example from iqe-ccx-plugin.
+Only this option requires you to run tests manually and stop the script by <code class="language-plaintext highlighter-rouge">Ctrl+C</code> when they are done</li>
+</ol>
+
+<p>For example:</p>
+
+<p><code class="language-plaintext highlighter-rouge">./make-coverage.sh unit-sqlite</code> will generate a report file <code class="language-plaintext highlighter-rouge">coverage.out</code>
+which you can investigate by either of those commands:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">go tool cover -func=coverage.out</code></li>
+  <li><code class="language-plaintext highlighter-rouge">go tool cover -html=coverage.out</code> if your system supports it, this command will open a browser with a nice colored report</li>
+</ul>
+
+<h2 id="openapi-checks">OpenAPI checks</h2>
+
+<p>Content of file <code class="language-plaintext highlighter-rouge">openapi.json</code> can be checked by using:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>make openapi-check
+</code></pre></div></div>
+
+<p>It is also possible to use online checker that is available on
+<a href="https://apitools.dev/swagger-parser/online/">https://apitools.dev/swagger-parser/online/</a></p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/testing.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

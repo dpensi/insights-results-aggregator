@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Local setup | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Local setup" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/local_setup.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/local_setup.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/local_setup.html","@type":"WebPage","headline":"Local setup","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 class="no_toc" id="local-setup">Local setup</h1>
+
+<h2 class="no_toc text-delta" id="table-of-contents">Table of contents</h2>
+
+<ol id="markdown-toc">
+  <li><a href="#prerequisites" id="markdown-toc-prerequisites">Prerequisites</a></li>
+  <li><a href="#usage" id="markdown-toc-usage">Usage</a></li>
+  <li><a href="#troubleshooting" id="markdown-toc-troubleshooting">Troubleshooting</a></li>
+  <li><a href="#kafka-producer" id="markdown-toc-kafka-producer">Kafka producer</a></li>
+</ol>
+
+<p>There is a <code class="language-plaintext highlighter-rouge">docker-compose</code> configuration that provisions a minimal stack of Insight Platform and
+a postgres database.
+You can download it here <a href="https://gitlab.cee.redhat.com/insights-qe/iqe-ccx-plugin/blob/master/docker-compose.yml">https://gitlab.cee.redhat.com/insights-qe/iqe-ccx-plugin/blob/master/docker-compose.yml</a></p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ul>
+  <li>edit localhost line in your <code class="language-plaintext highlighter-rouge">/etc/hosts</code>:  <code class="language-plaintext highlighter-rouge">127.0.0.1       localhost kafka minio</code></li>
+  <li><code class="language-plaintext highlighter-rouge">ingress</code> image should present on your machine. You can build it locally from this repo</li>
+</ul>
+<p><a href="https://github.com/RedHatInsights/insights-ingress-go">https://github.com/RedHatInsights/insights-ingress-go</a></p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">ccx-data-pipeline</code> installed. You can doing it by cloning the ccx-data-pipeline repository and running <code class="language-plaintext highlighter-rouge">pip install -r requirements.txt</code>. Make sure you are using the appropiate version of Python (look at <code class="language-plaintext highlighter-rouge">ccx-data-pipeline</code> README) and a virtualenv (optional but recommended).</li>
+</ul>
+
+<h2 id="usage">Usage</h2>
+
+<ol>
+  <li>Start the stack <code class="language-plaintext highlighter-rouge">podman-compose up</code> or <code class="language-plaintext highlighter-rouge">docker-compose up</code></li>
+  <li>Wait until kafka will be up.</li>
+  <li>Start <code class="language-plaintext highlighter-rouge">ccx-data-pipeline</code>: <code class="language-plaintext highlighter-rouge">python3 -m insights_messaging config-devel.yaml</code></li>
+  <li>Build <code class="language-plaintext highlighter-rouge">insights-results-aggregator</code>: <code class="language-plaintext highlighter-rouge">make build</code></li>
+  <li>Start <code class="language-plaintext highlighter-rouge">insights-results-aggregator</code>: <code class="language-plaintext highlighter-rouge">INSIGHTS_RESULTS_AGGREGATOR_CONFIG_FILE=config-devel.toml ./insights-results-aggregator</code></li>
+</ol>
+
+<p>Stop Minimal Insights Platform stack <code class="language-plaintext highlighter-rouge">podman-compose down</code> or <code class="language-plaintext highlighter-rouge">docker-compose down</code></p>
+
+<p>In order to upload an insights archive, you can use <code class="language-plaintext highlighter-rouge">curl</code>:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-k</span> <span class="nt">-vvvv</span> <span class="nt">-F</span> <span class="s2">"upload=@/path/to/your/archive.zip;type=application/vnd.redhat.testareno.archive+zip"</span> http://localhost:3000/api/ingress/v1/upload <span class="nt">-H</span> <span class="s2">"x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjEifX19Cg=="</span>
+</code></pre></div></div>
+
+<p>or you can use integration tests suite. More details are <a href="https://gitlab.cee.redhat.com/insights-qe/iqe-ccx-plugin">here</a>.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<ul>
+  <li>If you find an error in the last step because no <code class="language-plaintext highlighter-rouge">migration_info</code> table was found in the DB, run
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INSIGHTS_RESULTS_AGGREGATOR_CONFIG_FILE=config-devel.toml ./insights-results-aggregator migrate latest
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>If the binary cannot find the <code class="language-plaintext highlighter-rouge">config-devel.toml</code> even if the relative path is right, use an absolute one instead i.e <code class="language-plaintext highlighter-rouge">/path/to/config-devel.toml</code>.</p>
+  </li>
+  <li>Make sure to read the contents of <code class="language-plaintext highlighter-rouge">config-devel.toml</code> as it has all the configuration about the connections to the containers and the API prefix.</li>
+</ul>
+
+<h2 id="kafka-producer">Kafka producer</h2>
+
+<p>It is possible to use the script <code class="language-plaintext highlighter-rouge">produce_insights_results</code> from <code class="language-plaintext highlighter-rouge">utils</code> to produce several Insights
+results into Kafka topic. Its dependency is Kafkacat that needs to be installed on the same machine.
+You can find installation instructions <a href="https://github.com/edenhill/kafkacat">on this page</a>.</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/local_setup.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

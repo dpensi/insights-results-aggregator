@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Configuration | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Configuration" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/configuration.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/configuration.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/configuration.html","@type":"WebPage","headline":"Configuration","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 class="no_toc" id="configuration">Configuration</h1>
+
+<h2 class="no_toc text-delta" id="table-of-contents">Table of contents</h2>
+
+<ol id="markdown-toc">
+  <li><a href="#clowder-configuration" id="markdown-toc-clowder-configuration">Clowder configuration</a></li>
+  <li><a href="#broker-configuration" id="markdown-toc-broker-configuration">Broker configuration</a>    <ol>
+      <li><a href="#about-timeout-definition" id="markdown-toc-about-timeout-definition">About <code class="language-plaintext highlighter-rouge">timeout</code> definition</a></li>
+    </ol>
+  </li>
+  <li><a href="#server-configuration" id="markdown-toc-server-configuration">Server configuration</a></li>
+  <li><a href="#cloudwatch-configuration" id="markdown-toc-cloudwatch-configuration">CloudWatch configuration</a></li>
+  <li><a href="#metrics-configuration" id="markdown-toc-metrics-configuration">Metrics configuration</a></li>
+</ol>
+
+<p>Configuration is done by toml config, default one is <code class="language-plaintext highlighter-rouge">config.toml</code> in working directory,
+but it can be overwritten by <code class="language-plaintext highlighter-rouge">INSIGHTS_RESULTS_AGGREGATOR_CONFIG_FILE</code> env var.</p>
+
+<p>Also each key in config can be overwritten by corresponding env var. For example if you have config</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[storage]</span>
+<span class="py">db_driver</span> <span class="p">=</span> <span class="s">"sqlite3"</span>
+<span class="py">sqlite_datasource</span> <span class="p">=</span> <span class="s">"./aggregator.db"</span>
+<span class="py">pg_username</span> <span class="p">=</span> <span class="s">"user"</span>
+<span class="py">pg_password</span> <span class="p">=</span> <span class="s">"password"</span>
+<span class="py">pg_host</span> <span class="p">=</span> <span class="s">"localhost"</span>
+<span class="py">pg_port</span> <span class="p">=</span> <span class="mi">5432</span>
+<span class="py">pg_db_name</span> <span class="p">=</span> <span class="s">"aggregator"</span>
+<span class="py">pg_params</span> <span class="p">=</span> <span class="s">""</span>
+</code></pre></div></div>
+
+<p>and environment variables</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">INSIGHTS_RESULTS_AGGREGATOR__STORAGE__DB_DRIVER</span><span class="o">=</span><span class="s2">"postgres"</span>
+<span class="nv">INSIGHTS_RESULTS_AGGREGATOR__STORAGE__PG_PASSWORD</span><span class="o">=</span><span class="s2">"your secret password"</span>
+</code></pre></div></div>
+
+<p>the actual driver will be postgres with password “your secret password”</p>
+
+<p>It’s very useful for deploying docker containers and keeping some of your configuration
+outside of main config file(like passwords).</p>
+
+<h3 id="clowder-configuration">Clowder configuration</h3>
+
+<p>In Clowder environment, some configuration options are injected automatically.
+Currently Kafka broker configuration is injected this side. To test this
+behavior, it is possible to specify path to Clowder-related configuration file
+via <code class="language-plaintext highlighter-rouge">ACG_CONFIG</code> environment variable:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>export ACG_CONFIG="clowder_config.json"
+</code></pre></div></div>
+
+<h2 id="broker-configuration">Broker configuration</h2>
+
+<p>Broker configuration is in section <code class="language-plaintext highlighter-rouge">[broker]</code> in config file</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[broker]</span>
+<span class="py">address</span> <span class="p">=</span> <span class="s">"localhost:9092"</span>
+<span class="py">security_protocol</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">cert_path</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">sasl_mechanism</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">sasl_username</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">sasl_password</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">topic</span> <span class="p">=</span> <span class="s">"topic"</span>
+<span class="py">timeout</span> <span class="p">=</span> <span class="s">"30s"</span>
+<span class="py">payload_tracker_topic</span> <span class="p">=</span> <span class="s">"payload-tracker-topic"</span>
+<span class="py">dead_letter_queue_topic</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">service_name</span> <span class="p">=</span> <span class="s">"insights-results-aggregator"</span>
+<span class="py">group</span> <span class="p">=</span> <span class="s">"aggregator"</span>
+<span class="py">enabled</span> <span class="p">=</span> <span class="kc">true</span>
+<span class="py">org_allowlist_file</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">enable_org_allowlist</span> <span class="p">=</span> <span class="kc">false</span>
+</code></pre></div></div>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">address</code> is an address of kafka broker (DEFAULT: “”)</li>
+  <li><code class="language-plaintext highlighter-rouge">security_protocol</code> is a value for the <code class="language-plaintext highlighter-rouge">security.protocol</code> Kafka configuration. Defaults to “”</li>
+  <li><code class="language-plaintext highlighter-rouge">cert_path</code> is a path to a file containing an SSL certificate, only used if <code class="language-plaintext highlighter-rouge">secutiy_protocol</code> is properly set to <code class="language-plaintext highlighter-rouge">SSL</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sasl_mechanism</code> is the SASL authentication mechanism to use when <code class="language-plaintext highlighter-rouge">SASL_SSL</code> is set as <code class="language-plaintext highlighter-rouge">security_protocol</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sasl_username</code> is the SASL username to be used when <code class="language-plaintext highlighter-rouge">SASL_SSL</code> is set as <code class="language-plaintext highlighter-rouge">security_protocol</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sasl_password</code> is the SASL password to be used when <code class="language-plaintext highlighter-rouge">SASL_SSL</code> is set as <code class="language-plaintext highlighter-rouge">security_protocol</code></li>
+  <li><code class="language-plaintext highlighter-rouge">topic</code> is a topic to consume messages from (DEFAULT: “”)</li>
+  <li><code class="language-plaintext highlighter-rouge">timeout</code> is the time used as timeout for the Kafka client networking side. See notes above</li>
+  <li><code class="language-plaintext highlighter-rouge">payload_tracker_topic</code> is a topic to which messages for the Payload Tracker are published (see <code class="language-plaintext highlighter-rouge">producer</code> package) (DEFAULT: “”)</li>
+  <li><code class="language-plaintext highlighter-rouge">dead_letter_queue_topic</code> is a topic where the non-processed messages will be sent in order to process them later.</li>
+  <li><code class="language-plaintext highlighter-rouge">service_name</code> is the name of this service as reported to the Payload Tracker (DEFAULT: “”)</li>
+  <li><code class="language-plaintext highlighter-rouge">group</code> is a kafka group (DEFAULT: “”)</li>
+  <li><code class="language-plaintext highlighter-rouge">enabled</code> is an option to turn broker on (DEFAULT: false)</li>
+  <li><code class="language-plaintext highlighter-rouge">org_allowlist_file</code></li>
+  <li><code class="language-plaintext highlighter-rouge">enable_org_allowlist</code></li>
+</ul>
+
+<p>The offset is stored in the same kafka broker. If it turned off,
+consuming will be started from the most recent message (DEFAULT: false)</p>
+
+<p>Option names in env configuration:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">address</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__ADDRESS</li>
+  <li><code class="language-plaintext highlighter-rouge">security_protocol</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__SECURITY_PROTOCOL</li>
+  <li><code class="language-plaintext highlighter-rouge">cert_path</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__CERT_PATH</li>
+  <li><code class="language-plaintext highlighter-rouge">sasl_mechanism</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__SASL_MECHANISM</li>
+  <li><code class="language-plaintext highlighter-rouge">sasl_username</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__SASL_USERNAME</li>
+  <li><code class="language-plaintext highlighter-rouge">sasl_password</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__SASL_PASSWORD</li>
+  <li><code class="language-plaintext highlighter-rouge">topic</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__TOPIC</li>
+  <li><code class="language-plaintext highlighter-rouge">timeout</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__TIMEOUT</li>
+  <li><code class="language-plaintext highlighter-rouge">payload_tracker_topic</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__PAYLOAD_TRACKER_TOPIC</li>
+  <li><code class="language-plaintext highlighter-rouge">dead_letter_queue_topic</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__DEAD_LETTER_QUEUE_TOPIC</li>
+  <li><code class="language-plaintext highlighter-rouge">service_name</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__SERVICE_NAME</li>
+  <li><code class="language-plaintext highlighter-rouge">group</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__GROUP</li>
+  <li><code class="language-plaintext highlighter-rouge">enabled</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__ENABLED</li>
+  <li><code class="language-plaintext highlighter-rouge">org_allowlist_file</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__ORG_ALLOWLIST_FILE</li>
+  <li><code class="language-plaintext highlighter-rouge">enable_org_allowlist</code> - INSIGHTS_RESULTS_AGGREGATOR__BROKER__ENABLE_ORG_ALLOWLIST</li>
+</ul>
+
+<h3 id="about-timeout-definition">About <code class="language-plaintext highlighter-rouge">timeout</code> definition</h3>
+
+<p>The <code class="language-plaintext highlighter-rouge">timeout</code> configuration should be an string that can be parsed by the
+function <a href="https://golang.org/pkg/time/#ParseDuration"><code class="language-plaintext highlighter-rouge">time.ParseDuration</code></a> from
+Golang standard library.</p>
+
+<p>This timeout will be applied as the configuration for dial, read and write
+timeouts of the Sarama Kafka library.</p>
+
+<h2 id="server-configuration">Server configuration</h2>
+
+<p>Server configuration is in section <code class="language-plaintext highlighter-rouge">[server]</code> in config file.</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[server]</span>
+<span class="py">address</span> <span class="p">=</span> <span class="s">":8080"</span>
+<span class="py">api_prefix</span> <span class="p">=</span> <span class="s">"/api/v1/"</span>
+<span class="py">api_spec_file</span> <span class="p">=</span> <span class="s">"openapi.json"</span>
+<span class="py">debug</span> <span class="p">=</span> <span class="kc">true</span>
+<span class="py">auth</span> <span class="p">=</span> <span class="kc">true</span>
+<span class="py">auth_type</span> <span class="p">=</span> <span class="s">"xrh"</span>
+<span class="py">maximum_feedback_message_length</span> <span class="p">=</span> <span class="mi">255</span>
+</code></pre></div></div>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">address</code> is host and port which server should listen to</li>
+  <li><code class="language-plaintext highlighter-rouge">api_prefix</code> is prefix for RestAPI path</li>
+  <li><code class="language-plaintext highlighter-rouge">api_spec_file</code> is the location of a required OpenAPI specifications file</li>
+  <li><code class="language-plaintext highlighter-rouge">debug</code> is developer mode that enables some special API endpoints not used on production. In
+production, <code class="language-plaintext highlighter-rouge">false</code> is used every time.</li>
+  <li><code class="language-plaintext highlighter-rouge">auth</code> turns on or turns authentication. Please note that this option can be set to <code class="language-plaintext highlighter-rouge">false</code> only
+in devel environment. In production, <code class="language-plaintext highlighter-rouge">true</code> is used every time.</li>
+  <li><code class="language-plaintext highlighter-rouge">auth_type</code> set type of auth, it means which header to use for auth <code class="language-plaintext highlighter-rouge">x-rh-identity</code> or
+<code class="language-plaintext highlighter-rouge">Authorization</code>. Can be used only with <code class="language-plaintext highlighter-rouge">auth = true</code>. Possible options: <code class="language-plaintext highlighter-rouge">jwt</code>, <code class="language-plaintext highlighter-rouge">xrh</code></li>
+  <li><code class="language-plaintext highlighter-rouge">maximum_feedback_message_length</code> is a maximum possible length of a string for user’s feedback</li>
+</ul>
+
+<p>Please note that if <code class="language-plaintext highlighter-rouge">auth</code> configuration option is turned off, not all REST API endpoints will be
+usable. Whole REST API schema is satisfied only for <code class="language-plaintext highlighter-rouge">auth = true</code>.</p>
+
+<h2 id="cloudwatch-configuration">CloudWatch configuration</h2>
+
+<p>CloudWatch configuration is in section <code class="language-plaintext highlighter-rouge">[cloudwatch]</code> in config file</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[cloudwatch]</span>
+<span class="py">aws_access_id</span> <span class="p">=</span> <span class="s">"a key id"</span>
+<span class="py">aws_secret_key</span> <span class="p">=</span> <span class="s">"tshhhh it is a secret"</span>
+<span class="py">aws_session_token</span> <span class="p">=</span> <span class="s">""</span>
+<span class="py">aws_region</span> <span class="p">=</span> <span class="s">"us-east-1"</span>
+<span class="py">log_group</span> <span class="p">=</span> <span class="s">"platform-dev"</span>
+<span class="py">stream_name</span> <span class="p">=</span> <span class="s">"insights-results-aggregator"</span>
+<span class="py">debug</span> <span class="p">=</span> <span class="kc">false</span>
+</code></pre></div></div>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">aws_access_id</code> is an aws access id</li>
+  <li><code class="language-plaintext highlighter-rouge">aws_secret_key</code> is an aws secret key</li>
+  <li><code class="language-plaintext highlighter-rouge">aws_session_token</code> is an aws session token</li>
+  <li><code class="language-plaintext highlighter-rouge">aws_region</code> is an aws region</li>
+  <li><code class="language-plaintext highlighter-rouge">log_group</code> is a log group for aws logging</li>
+  <li><code class="language-plaintext highlighter-rouge">stream_name</code> is a stream name for aws logging. If you’re deploying multiple pods,
+you can add <code class="language-plaintext highlighter-rouge">$HOSTNAME</code> to the stream name so that they aren’t writing to the same stream at once</li>
+  <li><code class="language-plaintext highlighter-rouge">debug</code> is an option to enable debug output of cloudwatch logging</li>
+</ul>
+
+<h2 id="metrics-configuration">Metrics configuration</h2>
+
+<p>Metrics configuration is in section <code class="language-plaintext highlighter-rouge">[metrics]</code> in config file</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[metrics]</span>
+<span class="py">namespace</span> <span class="p">=</span> <span class="s">"mynamespace"</span>
+</code></pre></div></div>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">namespace</code> if defined, it is used as <code class="language-plaintext highlighter-rouge">Namespace</code> argument when creating all
+the Prometheus metrics exposed by this service.</li>
+</ul>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/configuration.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+ Copyright 2023 Red Hat, Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<html>
+<head>
+<title>mig_0027_cleanup_invalid_rows_missing_org_id.go</title>
+<meta charset="utf-8"/>
+<style type="text/css">body {
+    background: rgb(225, 225, 225);
+    margin: 0px;
+    padding: 0px;
+}
+
+#docgo p {
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 15px;
+    margin-left: 0px;
+}
+
+#docgo div {
+    display: inline;
+}
+
+#docgo #background {
+    position: fixed;
+    top: 0; left: 525px; right: 0; bottom: 0;
+    background: rgb(47, 47, 47);
+    border-left: 1px solid #e5e5ee;
+    z-index: -1;
+}
+
+#docgo .keyword {
+    color: rgb(250, 200, 100);
+}
+
+#docgo .literal {
+    color: rgb(140, 190, 100);
+}
+
+#docgo .ident {
+    color: white;
+}
+
+#docgo .operator {
+    color: white;
+}
+
+#docgo .comment {
+}
+
+#docgo h1, h2, h3, h4, h5 {
+    text-align: left;
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 15px;
+    margin-left: 0px;
+}
+
+#docgo h1 {
+    margin-top: 40px;
+}
+
+#docgo .doc {
+    vertical-align: top;
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif;
+    font-size: 15px;
+    line-height: 22px;
+    color: black;
+    min-width: 450px;
+    max-width: 450px;
+    padding-top: 10px;
+    padding-right: 25px;
+    padding-bottom: 1px;
+    padding-left: 50px;
+    overflow-x: hidden;
+}
+
+#docgo .code {
+    min-width: 650px;
+    max-width: 650px;
+    padding-left: 25px;
+    padding-right: 15px;
+    border-left: 1px;
+    overflow-x: hidden;
+    vertical-align: top;
+}
+
+#docgo .code pre code  {
+    font-size: 12px;
+    line-height: 18px;
+    font-family: Menlo, Monaco, Consolas, "Lucida Console", monospace;
+    color: rgb(120, 120, 120);
+}
+</style>
+</head>
+<body>
+<div id="docgo">
+  <div id="background"></div>
+  <table>
+    <thead><tr><th class="doc"><h1>mig_0027_cleanup_invalid_rows_missing_org_id.go</h1></th><th class="code"></th></tr></thead>
+    <tbody>
+      
+      <tr class="section">
+	<td class="doc"><p>Copyright 2022 Red Hat, Inc</p>
+
+<p>Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at</p>
+
+<pre><code> http://www.apache.org/licenses/LICENSE-2.0
+</code></pre>
+
+<p>Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.</p>
+
+<p>This migration deletes invalid rows from tables that were modified in mig0026 (added
+and populated org<em>id columns based on <code>report</code> table) -- cluster</em>rule<em>toggle,
+cluster</em>rule<em>user</em>feedback and cluster<em>user</em>rule<em>disable</em>feedback. If the newly populated
+org_id columns are at the default value (0), that means we don't have that cluster in the
+report table (could happen, we sometimes don't check if a cluster exists), therefore they're
+invalid rows.</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">package</div> <div class="ident">migration</div><div class="operator"></div>
+
+<div class="keyword">import</div> <div class="operator">(</div>
+	<div class="literal">&#34;database/sql&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;fmt&#34;</div><div class="operator"></div>
+
+	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/types&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/rs/zerolog/log&#34;</div><div class="operator"></div>
+<div class="operator">)</div><div class="operator"></div>
+
+<div class="keyword">const</div> <div class="operator">(</div>
+	<div class="ident">deleteEmptyOrgIDQuery</div> <div class="operator">=</div> <div class="literal">&#34;DELETE FROM %v WHERE org_id = &#39;0&#39;&#34;</div><div class="operator"></div>
+<div class="operator">)</div><div class="operator"></div>
+
+<div class="keyword">var</div> <div class="ident">tablesToDeleteFrom</div> <div class="operator">=</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">string</div><div class="operator">{</div>
+	<div class="literal">&#34;cluster_rule_toggle&#34;</div><div class="operator">,</div>
+	<div class="literal">&#34;cluster_rule_user_feedback&#34;</div><div class="operator">,</div>
+	<div class="literal">&#34;cluster_user_rule_disable_feedback&#34;</div><div class="operator">,</div>
+<div class="operator">}</div><div class="operator"></div>
+
+<div class="keyword">var</div> <div class="ident">mig0027CleanupInvalidRowsMissingOrgID</div> <div class="operator">=</div> <div class="ident">Migration</div><div class="operator">{</div>
+	<div class="ident">StepUp</div><div class="operator">:</div> <div class="keyword">func</div><div class="operator">(</div><div class="ident">tx</div> <div class="operator">*</div><div class="ident">sql</div><div class="operator">.</div><div class="ident">Tx</div><div class="operator">,</div> <div class="ident">driver</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">DBDriver</div><div class="operator">)</div> <div class="ident">error</div> <div class="operator">{</div>
+
+		<div class="keyword">if</div> <div class="ident">driver</div> <div class="operator">==</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">DBDriverPostgres</div> <div class="operator">{</div>
+			<div class="keyword">for</div> <div class="ident">_</div><div class="operator">,</div> <div class="ident">table</div> <div class="operator">:=</div> <div class="keyword">range</div> <div class="ident">tablesToDeleteFrom</div> <div class="operator">{</div>
+				<div class="ident">deleteQuery</div> <div class="operator">:=</div> <div class="ident">fmt</div><div class="operator">.</div><div class="ident">Sprintf</div><div class="operator">(</div><div class="ident">deleteEmptyOrgIDQuery</div><div class="operator">,</div> <div class="ident">table</div><div class="operator">)</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>execute delete</p>
+</td>
+	<td class="code"><pre><code>				<div class="ident">res</div><div class="operator">,</div> <div class="ident">err</div> <div class="operator">:=</div> <div class="ident">tx</div><div class="operator">.</div><div class="ident">Exec</div><div class="operator">(</div><div class="ident">deleteQuery</div><div class="operator">)</div><div class="operator"></div>
+				<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+					<div class="keyword">return</div> <div class="ident">err</div><div class="operator"></div>
+				<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>check number of affected (deleted) rows</p>
+</td>
+	<td class="code"><pre><code>				<div class="ident">deletedRows</div><div class="operator">,</div> <div class="ident">err</div> <div class="operator">:=</div> <div class="ident">res</div><div class="operator">.</div><div class="ident">RowsAffected</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+				<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+					<div class="ident">log</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Err</div><div class="operator">(</div><div class="ident">err</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="literal">&#34;unable to retrieve number of deleted rows&#34;</div><div class="operator">)</div><div class="operator"></div>
+					<div class="keyword">return</div> <div class="ident">err</div><div class="operator"></div>
+				<div class="operator">}</div><div class="operator"></div>
+
+				<div class="ident">log</div><div class="operator">.</div><div class="ident">Info</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msgf</div><div class="operator">(</div><div class="literal">&#34;deleted %d rows from table %v&#34;</div><div class="operator">,</div> <div class="ident">deletedRows</div><div class="operator">,</div> <div class="ident">table</div><div class="operator">)</div><div class="operator"></div>
+			<div class="operator">}</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+
+		<div class="keyword">return</div> <div class="ident">nil</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator">,</div>
+	<div class="ident">StepDown</div><div class="operator">:</div> <div class="keyword">func</div><div class="operator">(</div><div class="ident">tx</div> <div class="operator">*</div><div class="ident">sql</div><div class="operator">.</div><div class="ident">Tx</div><div class="operator">,</div> <div class="ident">driver</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">DBDriver</div><div class="operator">)</div> <div class="ident">error</div> <div class="operator">{</div>
+		<div class="ident">log</div><div class="operator">.</div><div class="ident">Info</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="literal">&#34;Mig0027 is a one-way ticket. Nothing to be done for StepDown.&#34;</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">return</div> <div class="ident">nil</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator">,</div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

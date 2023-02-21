@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>[Design] Scalable storage for external data pipeline | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="[Design] Scalable storage for external data pipeline" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/presentations/DB-improvements-demo/db-improvements-demo.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/presentations/DB-improvements-demo/db-improvements-demo.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/presentations/DB-improvements-demo/db-improvements-demo.html","@type":"WebPage","headline":"[Design] Scalable storage for external data pipeline","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 id="design-scalable-storage-for-external-data-pipeline">[Design] Scalable storage for external data pipeline</h1>
+
+<p>27 Apr 2022
+Tags: golang, go, rds, database, burst balance</p>
+
+<p>Pavel Tišnovský
+Red Hat, Inc.
+<a href="mailto:ptisnovs@redhat.com">ptisnovs@redhat.com</a></p>
+
+<h2 id="summary-tldr">Summary (TL;DR;)</h2>
+
+<ul>
+  <li>Finished improvements
+    <ul>
+      <li>No <code class="language-plaintext highlighter-rouge">ON UPDATE</code> clause for <code class="language-plaintext highlighter-rouge">rule_hits</code> table</li>
+      <li>Usage of existing index for <code class="language-plaintext highlighter-rouge">recommendation</code> table</li>
+    </ul>
+  </li>
+  <li>Finished spikes/findings
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">org_id</code> is numeric, but set as <code class="language-plaintext highlighter-rouge">varchar</code> in some tables</li>
+      <li>Filter by <code class="language-plaintext highlighter-rouge">reported_at</code> during retrieving results</li>
+    </ul>
+  </li>
+  <li>Planned improvements
+    <ul>
+      <li>Use one <code class="language-plaintext highlighter-rouge">INSERT</code> statement to insert multiple rule hits into <code class="language-plaintext highlighter-rouge">rule_hits</code> table</li>
+      <li>Horizontal partitioning when we reach DB limits (1M of clusters, 10M rule hits)</li>
+    </ul>
+  </li>
+  <li>Not planned improvements
+    <ul>
+      <li>Vertical partitioning</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="finished-improvements">Finished improvements</h2>
+
+<h3 id="no-on-update-clause-for-rule_hits-table">No <code class="language-plaintext highlighter-rouge">ON UPDATE</code> clause for <code class="language-plaintext highlighter-rouge">rule_hits</code> table</h3>
+
+<ul>
+  <li>write duration is still O(n)</li>
+  <li>but write speed is faster
+    <ul>
+      <li>in range of 1-10%</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="write-duration">Write duration</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/improvement1_1.png" alt="improvement1_1.png" /></p>
+
+<h4 id="write-speed">Write speed</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/improvement1_2.png" alt="improvement1_2.png" /></p>
+
+<h3 id="usage-of-existing-index-for-recommendation-table">Usage of existing index for <code class="language-plaintext highlighter-rouge">recommendation</code> table</h3>
+
+<ul>
+  <li>avoid sequential scan</li>
+  <li>write duration is O(1)
+    <ul>
+      <li>huge improvement</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="write-duration-1">Write duration</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/improvement2_1.png" alt="improvement2_1.png" /></p>
+
+<h4 id="write-speed-1">Write speed</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/improvement2_2.png" alt="improvement2_2.png" /></p>
+
+<h2 id="finished-findings">Finished findings</h2>
+
+<h3 id="org_id-is-numeric-but-set-as-varchar-in-some-tables"><code class="language-plaintext highlighter-rouge">org_id</code> is numeric, but set as varchar in some tables</h3>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">org_id</code> needs to be set to numeric type in all tables</li>
+  <li>it will shrinken indexes a bit
+    <ul>
+      <li>cache improvements</li>
+    </ul>
+  </li>
+  <li>and it is required schema restriction, of course</li>
+</ul>
+
+<h3 id="filter-by-reported_at-during-retrieving-results">Filter by <code class="language-plaintext highlighter-rouge">reported_at</code> during retrieving results</h3>
+
+<ul>
+  <li>Usually filtering by “less then” etc. is not as effective as using relations</li>
+  <li>But it is not blocker there</li>
+  <li>Let’s see results for a table with 100 organizations and 1000 clusters per organization
+    <ul>
+      <li>(which is a lot, usually there are just several cluster per organization)</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="measurement">Measurement</h4>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aggregator=# explain analyze SELECT cluster
+FROM report
+WHERE org_id = 1
+AND reported_at &gt;= '2000-01-01'
+ORDER BY cluster;
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
+ Index Scan using report_pkey on report  (cost=0.42..193.63 rows=98 width=37) (actual time=0.035..1.278 rows=1000 loops=1)
+   Index Cond: (org_id = 1)
+   Filter: (reported_at &gt;= '2000-01-01 00:00:00'::timestamp without time zone)
+ Planning time: 0.202 ms
+ Execution time: 1.435 ms
+(5 rows)
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aggregator=# explain analyze SELECT cluster
+FROM report
+WHERE org_id = 1
+ORDER BY cluster;              
+                                                           QUERY PLAN                                                           
+--------------------------------------------------------------------------------------------------------------------------------
+ Index Only Scan using report_pkey on report  (cost=0.42..193.38 rows=98 width=37) (actual time=0.038..1.019 rows=1000 loops=1)
+   Index Cond: (org_id = 1)
+   Heap Fetches: 1000
+ Planning time: 0.163 ms
+ Execution time: 1.195 ms
+(5 rows)
+</code></pre></div></div>
+
+<h2 id="spikes-possible-future-improvements">Spikes: Possible future improvements</h2>
+
+<ul>
+  <li>vertical partitioning</li>
+  <li>horizontal partitioning</li>
+</ul>
+
+<h3 id="partitioning">Partitioning</h3>
+
+<ul>
+  <li>division of table into distinct independent tables</li>
+  <li>horizontal
+    <ul>
+      <li>by row</li>
+    </ul>
+  </li>
+  <li>vertical
+    <ul>
+      <li>by column</li>
+    </ul>
+  </li>
+  <li>enables scaling</li>
+</ul>
+
+<h3 id="partitioning-in-postgres">Partitioning in Postgres</h3>
+
+<ul>
+  <li>method</li>
+  <li>partition key
+    <ul>
+      <li>column(s) or expression(s)</li>
+    </ul>
+  </li>
+  <li>partition boundaries</li>
+  <li>subpartitioning</li>
+</ul>
+
+<h3 id="vertical-partitioning">Vertical partitioning</h3>
+
+<ul>
+  <li>creating tables with fewer columns
+    <ul>
+      <li>additional tables to store the remaining columns</li>
+      <li>not normalization</li>
+      <li>no specific syntax in PostgreSQL</li>
+      <li>query usually consists of several <code class="language-plaintext highlighter-rouge">JOIN</code>s</li>
+    </ul>
+  </li>
+  <li>when
+    <ul>
+      <li>slow-moving data vs. dynamic data</li>
+      <li>like “disable rule” (if stored in same table as rules!)</li>
+      <li>aggregate functions called frequently over small number of columns</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="possible-use-cases-for-vertical-partitioning">Possible use cases for vertical partitioning</h4>
+
+<ul>
+  <li>Does some sense for following tables
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">report</code></li>
+      <li><code class="language-plaintext highlighter-rouge">recommendation</code></li>
+      <li><code class="language-plaintext highlighter-rouge">rule_hit</code></li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="vertical-partitioning-pros-and-cons">Vertical partitioning pros and cons</h4>
+
+<ul>
+  <li>Pros
+    <ul>
+      <li>N/A in our case</li>
+      <li>we don’t have slow-moving &amp; dynamic data in the same table</li>
+      <li>(in future - when aggregate functions are to be called over rule FQDNs or error_keys)</li>
+    </ul>
+  </li>
+  <li>Cons
+    <ul>
+      <li>a bit slower DB writes (<code class="language-plaintext highlighter-rouge">INSERT</code>)</li>
+      <li>a bit slower DB queries (<code class="language-plaintext highlighter-rouge">SELECT</code>)</li>
+    </ul>
+  </li>
+  <li>Conclusion
+    <ul>
+      <li>not planned to be added in near future</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="horizontal-partitioning">Horizontal partitioning</h4>
+
+<ul>
+  <li>creating tables with fewer rows
+    <ul>
+      <li>additional tables to store the remaining rows</li>
+      <li>specific syntax in PostgreSQL 10.x</li>
+    </ul>
+  </li>
+  <li>when
+    <ul>
+      <li>old data (not used much) vs new data</li>
+      <li>partitioned “naturally” by country, date range etc.</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="horizontal-partition-types">Horizontal partition types</h4>
+
+<h5 id="list-partition">List Partition</h5>
+
+<ul>
+  <li>partitioned by (small amount) of values</li>
+  <li>example: disabled column
+    <ul>
+      <li>creates two partitions</li>
+    </ul>
+  </li>
+  <li>not applicable in our case</li>
+</ul>
+
+<h5 id="range-partition">Range Partition</h5>
+
+<ul>
+  <li>partitioned by defined range of values
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">date_from</code> .. <code class="language-plaintext highlighter-rouge">date_to</code> etc.</li>
+    </ul>
+  </li>
+  <li>theoretically applicable in our case</li>
+</ul>
+
+<h5 id="hash-partition">Hash Partition</h5>
+
+<ul>
+  <li>partitioned by supplying a modulus and a remainder</li>
+  <li>each partition contains the rows for which the modulus/hash_of_key=remainder</li>
+  <li>theoretically applicable in our case</li>
+</ul>
+
+<h4 id="possible-use-cases-for-horizontal-partitioning">Possible use cases for horizontal partitioning</h4>
+
+<ul>
+  <li>Does some sense for following tables
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">report</code></li>
+      <li><code class="language-plaintext highlighter-rouge">recommendation</code></li>
+      <li><code class="language-plaintext highlighter-rouge">rule_hit</code></li>
+    </ul>
+  </li>
+  <li>How to partition
+    <ul>
+      <li>by <code class="language-plaintext highlighter-rouge">org_id</code> (range)</li>
+      <li>by <code class="language-plaintext highlighter-rouge">org_id</code> (hash)</li>
+      <li>(basically no “old” and “new” data to partition by date)</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="measurement-1">Measurement</h4>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aggregator=# select count(*), min(org_id), max(org_id) from recommendation;
+ count |  min  |   max    
+-------+-------+----------
+ 35000 | 11804 | 99985512
+(1 row)
+</code></pre></div></div>
+
+<h4 id="horizontal-partitioning-pros-and-cons">Horizontal partitioning pros and cons</h4>
+
+<ul>
+  <li>Pros
+    <ul>
+      <li>possible speedup when we reach approximately 1M clusters or 10M rule hits</li>
+      <li>when partitioned by org_id (hash), everything’s for free</li>
+    </ul>
+  </li>
+  <li>Cons
+    <ul>
+      <li>absolute monstrose syntax + semantic in PostgreSQL &lt; 10.x</li>
+      <li>
+        <ul>
+          <li>indexes must be added to each partition with separate commands</li>
+        </ul>
+      </li>
+      <li>partitioning by org_id (range) seems logical, but we are not sure about org_id distribution</li>
+    </ul>
+  </li>
+  <li>Conclusion
+    <ul>
+      <li>not planned yet (for near future)</li>
+      <li>good solution when we reach approximately 1M clusters or 10M rule hits</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="practical-part">Practical part</h2>
+
+<h3 id="partitioning-usage-for-postgresql-before-v10">Partitioning usage for PostgreSQL before v.10</h3>
+
+<h4 id="create-master-table">Create master table</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/1_create_master_table.png" alt="1_create_master_table.png" /></p>
+
+<h4 id="create-partitions-for-defined-ranges-by-hand">Create partitions for defined ranges by hand</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/2_create_partitions.png" alt="2_create_partitions.png" /></p>
+
+<h4 id="it-is-also-needed-to-create-indexes">It is also needed to create indexes</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/3_create_indexes.png" alt="3_create_indexes.png" /></p>
+
+<h4 id="a-monstrosity---trigger-for-insering-into-the-right-table">A monstrosity - trigger for insering into the right table</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/4_create_trigger.png" alt="4_create_trigger.png" /></p>
+
+<h3 id="partitioning-usage-for-postgresql-v10---partition-by-range">Partitioning usage for PostgreSQL v.10 - partition by range</h3>
+
+<h4 id="create-master-table-1">Create master table</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/5_create_master_table.png" alt="5_create_master_table.png" /></p>
+
+<h4 id="create-partitions-for-defined-ranges">Create partitions for defined ranges</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/6_create_partitions.png" alt="6_create_partitions.png" /></p>
+
+<h4 id="now-insert-select-etc-are-used-naturally">Now <code class="language-plaintext highlighter-rouge">INSERT</code>, <code class="language-plaintext highlighter-rouge">SELECT</code> etc. are used naturally</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/7_insert_select.png" alt="7_insert_select.png" /></p>
+
+<h3 id="partitioning-usage-for-postgresql-v10---partition-by-hash">Partitioning usage for PostgreSQL v.10 - partition by hash</h3>
+
+<ul>
+  <li>partition by org_id hash</li>
+  <li>basically hash is divided by modulus</li>
+  <li>then partition is selected by remainder of hash%modulus
+    <ul>
+      <li>partitions size should be similar in this case</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="create-master-table-2">Create master table</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/8_create_master_table.png" alt="8_create_master_table.png" /></p>
+
+<h4 id="create-partitions-for-all-three-remainders">Create partitions for all three remainders</h4>
+
+<p><img src="/insights-results-aggregator/presentations/DB-improvements-demo/9_create_partitions.png" alt="9_create_partitions.png" /></p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/presentations/DB-improvements-demo/db-improvements-demo.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

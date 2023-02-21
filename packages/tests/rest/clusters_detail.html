@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<!--
+ Copyright 2023 Red Hat, Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<html>
+<head>
+<title>clusters_detail.go</title>
+<meta charset="utf-8"/>
+<style type="text/css">body {
+    background: rgb(225, 225, 225);
+    margin: 0px;
+    padding: 0px;
+}
+
+#docgo p {
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 15px;
+    margin-left: 0px;
+}
+
+#docgo div {
+    display: inline;
+}
+
+#docgo #background {
+    position: fixed;
+    top: 0; left: 525px; right: 0; bottom: 0;
+    background: rgb(47, 47, 47);
+    border-left: 1px solid #e5e5ee;
+    z-index: -1;
+}
+
+#docgo .keyword {
+    color: rgb(250, 200, 100);
+}
+
+#docgo .literal {
+    color: rgb(140, 190, 100);
+}
+
+#docgo .ident {
+    color: white;
+}
+
+#docgo .operator {
+    color: white;
+}
+
+#docgo .comment {
+}
+
+#docgo h1, h2, h3, h4, h5 {
+    text-align: left;
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 15px;
+    margin-left: 0px;
+}
+
+#docgo h1 {
+    margin-top: 40px;
+}
+
+#docgo .doc {
+    vertical-align: top;
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif;
+    font-size: 15px;
+    line-height: 22px;
+    color: black;
+    min-width: 450px;
+    max-width: 450px;
+    padding-top: 10px;
+    padding-right: 25px;
+    padding-bottom: 1px;
+    padding-left: 50px;
+    overflow-x: hidden;
+}
+
+#docgo .code {
+    min-width: 650px;
+    max-width: 650px;
+    padding-left: 25px;
+    padding-right: 15px;
+    border-left: 1px;
+    overflow-x: hidden;
+    vertical-align: top;
+}
+
+#docgo .code pre code  {
+    font-size: 12px;
+    line-height: 18px;
+    font-family: Menlo, Monaco, Consolas, "Lucida Console", monospace;
+    color: rgb(120, 120, 120);
+}
+</style>
+</head>
+<body>
+<div id="docgo">
+  <div id="background"></div>
+  <table>
+    <thead><tr><th class="doc"><h1>clusters_detail.go</h1></th><th class="code"></th></tr></thead>
+    <tbody>
+      
+      <tr class="section">
+	<td class="doc"></td>
+	<td class="code"><pre><code><div class="comment">/*
+Copyright © 2020 Red Hat, Inc.
+
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/</div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>THis package contains tests for the following endpoint:</p>
+
+<p>apiPrefix+&quot;/rules/{rule<em>selector}/organizations/{org</em>id}/users/{user<em>id}/clusters</em>detail&quot;</p>
+</td>
+	<td class="code"><pre><code>
+<div class="keyword">package</div> <div class="ident">tests</div><div class="operator"></div>
+
+<div class="keyword">import</div> <div class="operator">(</div>
+	<div class="literal">&#34;encoding/json&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;fmt&#34;</div><div class="operator"></div>
+
+	<div class="ident">httputils</div> <div class="literal">&#34;github.com/RedHatInsights/insights-operator-utils/http&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator-data/testdata&#34;</div><div class="operator"></div>
+	<div class="ident">server</div> <div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/server&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/RedHatInsights/insights-results-aggregator/types&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/stretchr/testify/assert&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/verdverm/frisby&#34;</div><div class="operator"></div>
+<div class="operator">)</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>ClusterInfoResponse represents the response containing the cluster information and status</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">type</div> <div class="ident">ClusterInfoResponse</div> <div class="keyword">struct</div> <div class="operator">{</div>
+	<div class="ident">Clusters</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">ClusterInfo</div> <div class="literal">`json:&#34;clusters&#34;`</div><div class="operator"></div>
+	<div class="ident">Status</div>   <div class="ident">string</div>        <div class="literal">`json:&#34;status&#34;`</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>ClusterInfoMeta represents the cluster metadata information</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">type</div> <div class="ident">ClusterInfoMeta</div> <div class="keyword">struct</div> <div class="operator">{</div>
+	<div class="ident">Version</div> <div class="ident">string</div> <div class="literal">`json:&#34;cluster_version&#34;`</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>ClusterInfo represents the cluster information</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">type</div> <div class="ident">ClusterInfo</div> <div class="keyword">struct</div> <div class="operator">{</div>
+	<div class="ident">Cluster</div> <div class="ident">string</div> <div class="literal">`json:&#34;cluster&#34;`</div><div class="operator"></div>
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>Name     string <code>json:&quot;cluster_name&quot;</code>
+LastSeen string <code>json:&quot;last_checked_at&quot;</code></p>
+</td>
+	<td class="code"><pre><code>	<div class="ident">Meta</div> <div class="ident">ClusterInfoMeta</div> <div class="literal">`json:&#34;meta&#34;`</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>constructURLForClustersDetail function constructs an URL to access
+the endpoint to retrieve results metadata for given cluster from selected
+organization and rule selector</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">constructURLForClustersDetail</div><div class="operator">(</div>
+	<div class="ident">organizationID</div> <div class="ident">string</div><div class="operator">,</div> <div class="ident">ruleSelector</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">,</div> <div class="ident">userID</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">UserID</div><div class="operator">)</div> <div class="ident">string</div> <div class="operator">{</div>
+	<div class="keyword">return</div> <div class="ident">httputils</div><div class="operator">.</div><div class="ident">MakeURLToEndpoint</div><div class="operator">(</div><div class="ident">apiURL</div><div class="operator">,</div>
+		<div class="ident">server</div><div class="operator">.</div><div class="ident">RuleClusterDetailEndpoint</div><div class="operator">,</div> <div class="ident">ruleSelector</div><div class="operator">,</div> <div class="ident">organizationID</div><div class="operator">,</div> <div class="ident">userID</div><div class="operator">)</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+<div class="keyword">func</div> <div class="ident">checkResponseContent</div><div class="operator">(</div><div class="ident">f</div> <div class="operator">*</div><div class="ident">frisby</div><div class="operator">.</div><div class="ident">Frisby</div><div class="operator">,</div> <div class="ident">expectedResponse</div> <div class="ident">ClusterInfoResponse</div><div class="operator">)</div> <div class="operator">{</div>
+	<div class="ident">text</div><div class="operator">,</div> <div class="ident">err</div> <div class="operator">:=</div> <div class="ident">f</div><div class="operator">.</div><div class="ident">Resp</div><div class="operator">.</div><div class="ident">Content</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+	<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+		<div class="ident">f</div><div class="operator">.</div><div class="ident">AddError</div><div class="operator">(</div><div class="ident">err</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">)</div><div class="operator"></div>
+	<div class="operator">}</div> <div class="keyword">else</div> <div class="operator">{</div>
+		<div class="ident">response</div> <div class="operator">:=</div> <div class="ident">ClusterInfoResponse</div><div class="operator">{</div><div class="operator">}</div><div class="operator"></div>
+		<div class="ident">err</div> <div class="operator">:=</div> <div class="ident">json</div><div class="operator">.</div><div class="ident">Unmarshal</div><div class="operator">(</div><div class="ident">text</div><div class="operator">,</div> <div class="operator">&amp;</div><div class="ident">response</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+			<div class="ident">f</div><div class="operator">.</div><div class="ident">AddError</div><div class="operator">(</div><div class="ident">err</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">)</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+
+		<div class="keyword">if</div> <div class="ident">response</div><div class="operator">.</div><div class="ident">Status</div> <div class="operator">!=</div> <div class="ident">expectedResponse</div><div class="operator">.</div><div class="ident">Status</div> <div class="operator">{</div>
+			<div class="ident">f</div><div class="operator">.</div><div class="ident">AddError</div><div class="operator">(</div><div class="ident">fmt</div><div class="operator">.</div><div class="ident">Sprintf</div><div class="operator">(</div><div class="literal">&#34;Expecting &#39;status&#39; to be set to %q but got %q&#34;</div><div class="operator">,</div> <div class="ident">expectedResponse</div><div class="operator">.</div><div class="ident">Status</div><div class="operator">,</div> <div class="ident">response</div><div class="operator">.</div><div class="ident">Status</div><div class="operator">)</div><div class="operator">)</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+
+		<div class="ident">equal</div> <div class="operator">:=</div> <div class="ident">assert</div><div class="operator">.</div><div class="ident">ObjectsAreEqualValues</div><div class="operator">(</div><div class="ident">expectedResponse</div><div class="operator">.</div><div class="ident">Clusters</div><div class="operator">,</div> <div class="ident">response</div><div class="operator">.</div><div class="ident">Clusters</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">if</div> <div class="operator">!</div><div class="ident">equal</div> <div class="operator">{</div>
+			<div class="ident">f</div><div class="operator">.</div><div class="ident">AddError</div><div class="operator">(</div><div class="ident">fmt</div><div class="operator">.</div><div class="ident">Sprintf</div><div class="operator">(</div><div class="literal">&#34;Expecting clusters to be set to\n%v\nbut got\n%v&#34;</div><div class="operator">,</div> <div class="ident">expectedResponse</div><div class="operator">.</div><div class="ident">Clusters</div><div class="operator">,</div> <div class="ident">response</div><div class="operator">.</div><div class="ident">Clusters</div><div class="operator">)</div><div class="operator">)</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+	<div class="ident">f</div><div class="operator">.</div><div class="ident">PrintReport</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>checkClustersDetailEndpointGet check if the endpoint to return the cluster detail works as expected with GET method.
+For this test there is this data:
+| Organization | Cluster                              | Rule                                                      | Version            |
+|--------------|--------------------------------------|-----------------------------------------------------------|--------------------|
+| 1            | 11111111-1111-1111-1111-111111111111 | ccx<em>rules</em>ocp.external.rules.node<em>installer</em>degraded|ek1  | 1.0                |
+| 2            | 22222222-2222-2222-2222-222222222222 | ccx<em>rules</em>ocp.external.rules.node<em>installer</em>degraded|ek1  | (empty)            |
+| 3            | 33333333-3333-3333-3333-333333333333 | ccx<em>rules</em>ocp.external.rules.node<em>installer</em>degraded|ek1  | not in report_info |</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">checkClustersEndpointDetailGet</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">{</div>
+	<div class="keyword">type</div> <div class="ident">testCase</div> <div class="keyword">struct</div> <div class="operator">{</div>
+		<div class="ident">name</div>             <div class="ident">string</div><div class="operator"></div>
+		<div class="ident">organizationID</div>   <div class="ident">string</div><div class="operator"></div>
+		<div class="ident">ruleSelector</div>     <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator"></div>
+		<div class="ident">expectStatus</div>     <div class="ident">int</div><div class="operator"></div>
+		<div class="ident">expectedResponse</div> <div class="ident">ClusterInfoResponse</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+	<div class="ident">table</div> <div class="operator">:=</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">testCase</div><div class="operator">{</div>
+		<div class="operator">{</div>
+			<div class="ident">name</div><div class="operator">:</div>           <div class="literal">&#34;Check the endpoint to return cluster information: known organization and rule found&#34;</div><div class="operator">,</div>
+			<div class="ident">expectStatus</div><div class="operator">:</div>   <div class="literal">200</div><div class="operator">,</div>
+			<div class="ident">organizationID</div><div class="operator">:</div> <div class="literal">&#34;1&#34;</div><div class="operator">,</div>
+			<div class="ident">ruleSelector</div><div class="operator">:</div>   <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule1CompositeID</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="ident">expectedResponse</div><div class="operator">:</div> <div class="ident">ClusterInfoResponse</div><div class="operator">{</div>
+				<div class="ident">Status</div><div class="operator">:</div> <div class="literal">&#34;ok&#34;</div><div class="operator">,</div>
+				<div class="ident">Clusters</div><div class="operator">:</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">ClusterInfo</div><div class="operator">{</div>
+					<div class="operator">{</div>
+						<div class="ident">Cluster</div><div class="operator">:</div> <div class="literal">&#34;11111111-1111-1111-1111-111111111111&#34;</div><div class="operator">,</div>
+						<div class="ident">Meta</div><div class="operator">:</div>    <div class="ident">ClusterInfoMeta</div><div class="operator">{</div><div class="ident">Version</div><div class="operator">:</div> <div class="literal">&#34;1.0&#34;</div><div class="operator">}</div><div class="operator">,</div>
+					<div class="operator">}</div><div class="operator">,</div>
+				<div class="operator">}</div><div class="operator">,</div>
+			<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">{</div>
+			<div class="ident">name</div><div class="operator">:</div>           <div class="literal">&#34;Check the endpoint to return cluster information: known organization and rule didn&#39;t find any clusters&#34;</div><div class="operator">,</div>
+			<div class="ident">expectStatus</div><div class="operator">:</div>   <div class="literal">404</div><div class="operator">,</div>
+			<div class="ident">organizationID</div><div class="operator">:</div> <div class="literal">&#34;1&#34;</div><div class="operator">,</div>
+			<div class="ident">ruleSelector</div><div class="operator">:</div>   <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule2CompositeID</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="ident">expectedResponse</div><div class="operator">:</div> <div class="ident">ClusterInfoResponse</div><div class="operator">{</div>
+				<div class="ident">Status</div><div class="operator">:</div> <div class="ident">fmt</div><div class="operator">.</div><div class="ident">Sprintf</div><div class="operator">(</div><div class="literal">&#34;Item with ID %s was not found in the storage&#34;</div><div class="operator">,</div> <div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule2CompositeID</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">{</div>
+			<div class="ident">name</div><div class="operator">:</div>           <div class="literal">&#34;Check the endpoint to return cluster information: known organization and version is empty&#34;</div><div class="operator">,</div>
+			<div class="ident">expectStatus</div><div class="operator">:</div>   <div class="literal">200</div><div class="operator">,</div>
+			<div class="ident">organizationID</div><div class="operator">:</div> <div class="literal">&#34;2&#34;</div><div class="operator">,</div>
+			<div class="ident">ruleSelector</div><div class="operator">:</div>   <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule1CompositeID</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="ident">expectedResponse</div><div class="operator">:</div> <div class="ident">ClusterInfoResponse</div><div class="operator">{</div>
+				<div class="ident">Status</div><div class="operator">:</div> <div class="literal">&#34;ok&#34;</div><div class="operator">,</div>
+				<div class="ident">Clusters</div><div class="operator">:</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">ClusterInfo</div><div class="operator">{</div>
+					<div class="operator">{</div>
+						<div class="ident">Cluster</div><div class="operator">:</div> <div class="literal">&#34;22222222-2222-2222-2222-222222222222&#34;</div><div class="operator">,</div>
+					<div class="operator">}</div><div class="operator">,</div>
+				<div class="operator">}</div><div class="operator">,</div>
+			<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">{</div>
+			<div class="ident">name</div><div class="operator">:</div>           <div class="literal">&#34;Check the endpoint to return cluster information: known organization and there is no version in report_info&#34;</div><div class="operator">,</div>
+			<div class="ident">expectStatus</div><div class="operator">:</div>   <div class="literal">200</div><div class="operator">,</div>
+			<div class="ident">organizationID</div><div class="operator">:</div> <div class="literal">&#34;3&#34;</div><div class="operator">,</div>
+			<div class="ident">ruleSelector</div><div class="operator">:</div>   <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule1CompositeID</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="ident">expectedResponse</div><div class="operator">:</div> <div class="ident">ClusterInfoResponse</div><div class="operator">{</div>
+				<div class="ident">Status</div><div class="operator">:</div> <div class="literal">&#34;ok&#34;</div><div class="operator">,</div>
+				<div class="ident">Clusters</div><div class="operator">:</div> <div class="operator">[</div><div class="operator">]</div><div class="ident">ClusterInfo</div><div class="operator">{</div>
+					<div class="operator">{</div>
+						<div class="ident">Cluster</div><div class="operator">:</div> <div class="literal">&#34;33333333-3333-3333-3333-333333333333&#34;</div><div class="operator">,</div>
+					<div class="operator">}</div><div class="operator">,</div>
+				<div class="operator">}</div><div class="operator">,</div>
+			<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">{</div>
+			<div class="ident">name</div><div class="operator">:</div>           <div class="literal">&#34;Check the endpoint to return cluster information: unknown organization&#34;</div><div class="operator">,</div>
+			<div class="ident">expectStatus</div><div class="operator">:</div>   <div class="literal">404</div><div class="operator">,</div>
+			<div class="ident">organizationID</div><div class="operator">:</div> <div class="literal">&#34;24&#34;</div><div class="operator">,</div>
+			<div class="ident">ruleSelector</div><div class="operator">:</div>   <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule1CompositeID</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="ident">expectedResponse</div><div class="operator">:</div> <div class="ident">ClusterInfoResponse</div><div class="operator">{</div>
+				<div class="ident">Status</div><div class="operator">:</div> <div class="ident">fmt</div><div class="operator">.</div><div class="ident">Sprintf</div><div class="operator">(</div><div class="literal">&#34;Item with ID %s was not found in the storage&#34;</div><div class="operator">,</div> <div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule1CompositeID</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">{</div>
+			<div class="ident">name</div><div class="operator">:</div>           <div class="literal">&#34;Check the endpoint to return cluster information: known organization invalid rule selector&#34;</div><div class="operator">,</div>
+			<div class="ident">expectStatus</div><div class="operator">:</div>   <div class="literal">400</div><div class="operator">,</div>
+			<div class="ident">organizationID</div><div class="operator">:</div> <div class="literal">&#34;1&#34;</div><div class="operator">,</div>
+			<div class="ident">ruleSelector</div><div class="operator">:</div>   <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="literal">&#34;not a rule&#34;</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="ident">expectedResponse</div><div class="operator">:</div> <div class="ident">ClusterInfoResponse</div><div class="operator">{</div>
+				<div class="ident">Status</div><div class="operator">:</div> <div class="ident">fmt</div><div class="operator">.</div><div class="ident">Sprintf</div><div class="operator">(</div><div class="literal">&#34;Error during parsing param &#39;rule_selector&#39; with value &#39;%s&#39;. Error: &#39;Param rule_selector is not a valid rule selector (plugin_name|error_key)&#39;&#34;</div><div class="operator">,</div> <div class="literal">&#34;not a rule&#34;</div><div class="operator">)</div><div class="operator">,</div>
+			<div class="operator">}</div><div class="operator">,</div>
+		<div class="operator">}</div><div class="operator">,</div>
+	<div class="operator">}</div><div class="operator"></div>
+
+	<div class="keyword">for</div> <div class="ident">_</div><div class="operator">,</div> <div class="ident">tc</div> <div class="operator">:=</div> <div class="keyword">range</div> <div class="ident">table</div> <div class="operator">{</div>
+		<div class="ident">url</div> <div class="operator">:=</div> <div class="ident">constructURLForClustersDetail</div><div class="operator">(</div><div class="ident">tc</div><div class="operator">.</div><div class="ident">organizationID</div><div class="operator">,</div> <div class="ident">tc</div><div class="operator">.</div><div class="ident">ruleSelector</div><div class="operator">,</div> <div class="ident">testdata</div><div class="operator">.</div><div class="ident">UserID</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">f</div> <div class="operator">:=</div> <div class="ident">frisby</div><div class="operator">.</div><div class="ident">Create</div><div class="operator">(</div><div class="ident">tc</div><div class="operator">.</div><div class="ident">name</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Get</div><div class="operator">(</div><div class="ident">url</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">setAuthHeader</div><div class="operator">(</div><div class="ident">f</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">f</div><div class="operator">.</div><div class="ident">Send</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">f</div><div class="operator">.</div><div class="ident">ExpectStatus</div><div class="operator">(</div><div class="ident">tc</div><div class="operator">.</div><div class="ident">expectStatus</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">f</div><div class="operator">.</div><div class="ident">ExpectHeader</div><div class="operator">(</div><div class="ident">contentTypeHeader</div><div class="operator">,</div> <div class="ident">ContentTypeJSON</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">f</div><div class="operator">.</div><div class="ident">PrintReport</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+
+		<div class="ident">checkResponseContent</div><div class="operator">(</div><div class="ident">f</div><div class="operator">,</div> <div class="ident">tc</div><div class="operator">.</div><div class="ident">expectedResponse</div><div class="operator">)</div><div class="operator"></div>
+
+		<div class="keyword">if</div> <div class="ident">tc</div><div class="operator">.</div><div class="ident">expectStatus</div> <div class="operator">!=</div> <div class="literal">200</div> <div class="operator">{</div>
+			<div class="ident">statusResponse</div> <div class="operator">:=</div> <div class="ident">readStatusFromResponse</div><div class="operator">(</div><div class="ident">f</div><div class="operator">)</div><div class="operator"></div>
+			<div class="ident">checkErrorStatusResponse</div><div class="operator">(</div><div class="ident">f</div><div class="operator">,</div> <div class="ident">statusResponse</div><div class="operator">)</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>checkReportInfoEndpointWrongMethods check if the endpoint to return results
+responds correctly to other methods than HTTP GET</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">checkClustersDetailsEndpointWrongMethods</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">{</div>
+	<div class="ident">url</div> <div class="operator">:=</div> <div class="ident">constructURLForClustersDetail</div><div class="operator">(</div><div class="literal">&#34;1&#34;</div><div class="operator">,</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule1CompositeID</div><div class="operator">)</div><div class="operator">,</div> <div class="ident">testdata</div><div class="operator">.</div><div class="ident">UserID</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">checkGetEndpointByOtherMethods</div><div class="operator">(</div><div class="ident">url</div><div class="operator">,</div> <div class="ident">false</div><div class="operator">)</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>checkClustersDetailsEndpointForKnownOrganizationNoAuthHeaderCase
+check if the endpoint to return report metadata works as expected.
+This test variant does not sent authorization header</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">checkClustersDetailsEndpointForKnownOrganizationNoAuthHeaderCase</div><div class="operator">(</div><div class="operator">)</div> <div class="operator">{</div>
+	<div class="ident">url</div> <div class="operator">:=</div> <div class="ident">constructURLForClustersDetail</div><div class="operator">(</div><div class="literal">&#34;1&#34;</div><div class="operator">,</div> <div class="ident">types</div><div class="operator">.</div><div class="ident">RuleSelector</div><div class="operator">(</div><div class="ident">testdata</div><div class="operator">.</div><div class="ident">Rule1CompositeID</div><div class="operator">)</div><div class="operator">,</div> <div class="ident">testdata</div><div class="operator">.</div><div class="ident">UserID</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">f</div> <div class="operator">:=</div> <div class="ident">frisby</div><div class="operator">.</div><div class="ident">Create</div><div class="operator">(</div><div class="literal">&#34;Check the endpoint to return cluster information: no authorization header&#34;</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Get</div><div class="operator">(</div><div class="ident">url</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">f</div><div class="operator">.</div><div class="ident">Send</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">f</div><div class="operator">.</div><div class="ident">ExpectStatus</div><div class="operator">(</div><div class="literal">401</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">f</div><div class="operator">.</div><div class="ident">ExpectHeader</div><div class="operator">(</div><div class="ident">contentTypeHeader</div><div class="operator">,</div> <div class="ident">ContentTypeJSON</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">f</div><div class="operator">.</div><div class="ident">PrintReport</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+
+	<div class="ident">statusResponse</div> <div class="operator">:=</div> <div class="ident">readStatusFromResponse</div><div class="operator">(</div><div class="ident">f</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">checkErrorStatusResponse</div><div class="operator">(</div><div class="ident">f</div><div class="operator">,</div> <div class="ident">statusResponse</div><div class="operator">)</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

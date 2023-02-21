@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Prometheus API | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Prometheus API" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/prometheus.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/prometheus.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/prometheus.html","@type":"WebPage","headline":"Prometheus API","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 id="prometheus-api">Prometheus API</h1>
+
+<p>It is possible to use <code class="language-plaintext highlighter-rouge">/api/v1/metrics</code> REST API endpoint to read all metrics exposed to Prometheus
+or to any tool that is compatible with it.
+Currently, the following metrics are exposed:</p>
+
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">consumed_messages</code> the total number of messages consumed from Kafka</li>
+  <li><code class="language-plaintext highlighter-rouge">consuming_errors</code> the total number of errors during consuming messages from Kafka</li>
+  <li><code class="language-plaintext highlighter-rouge">successful_messages_processing_time</code> the time to process successfully message</li>
+  <li><code class="language-plaintext highlighter-rouge">failed_messages_processing_time</code> the time to process message fail</li>
+  <li><code class="language-plaintext highlighter-rouge">last_checked_timestamp_lag_minutes</code> shows how slow we get messages from clusters</li>
+  <li><code class="language-plaintext highlighter-rouge">produced_messages</code> the total number of produced messages sent to Payload Tracker’s Kafka topic</li>
+  <li><code class="language-plaintext highlighter-rouge">written_reports</code> the total number of reports written to the storage</li>
+  <li><code class="language-plaintext highlighter-rouge">feedback_on_rules</code> the total number of left feedback</li>
+  <li><code class="language-plaintext highlighter-rouge">sql_queries_counter</code> the total number of SQL queries</li>
+  <li><code class="language-plaintext highlighter-rouge">sql_queries_durations</code> the SQL queries durations</li>
+</ol>
+
+<p>Additionally it is possible to consume all metrics provided by Go runtime. There metrics start with
+<code class="language-plaintext highlighter-rouge">go_</code> and <code class="language-plaintext highlighter-rouge">process_</code> prefixes.</p>
+
+<h2 id="api-related-metrics">API related metrics</h2>
+
+<p>There are a set of metrics provieded by <code class="language-plaintext highlighter-rouge">insights-operator-utils</code> library, all
+of them related with the API usage. These are the API metrics exposed:</p>
+
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">api_endpoints_requests</code> the total number of requests per endpoint</li>
+  <li><code class="language-plaintext highlighter-rouge">api_endpoints_response_time</code> API endpoints response time</li>
+  <li><code class="language-plaintext highlighter-rouge">api_endpoints_status_codes</code> a counter of the HTTP status code responses
+returned back by the service</li>
+</ol>
+
+<h2 id="metrics-namespace">Metrics namespace</h2>
+
+<p>As explained in the <a href="./configuration">configuration</a> section of this
+documentation, a namespace can be provided in order to act as a prefix to the
+metric name. If no namespace is provided in the configuration, the metrics will
+be exposed as described in this documentation.</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/prometheus.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

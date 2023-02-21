@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Database | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Database" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/database.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/database.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/database.html","@type":"WebPage","headline":"Database","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 id="database">Database</h1>
+
+<p>Aggregator is configured to use SQLite3 DB by default, but it also supports PostgreSQL.
+In CI and QA environments, the configuration is overridden by environment variables to use
+PostgreSQL.</p>
+
+<p>To establish connection to the PostgreSQL instance provided by the minimal stack in
+<code class="language-plaintext highlighter-rouge">docker-compose.yml</code> for local setup, the following configuration options need to be changed in
+<code class="language-plaintext highlighter-rouge">storage</code> section of <code class="language-plaintext highlighter-rouge">config.toml</code>:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[storage]</span>
+<span class="py">db_driver</span> <span class="p">=</span> <span class="s">"postgres"</span>
+<span class="py">pg_username</span> <span class="p">=</span> <span class="s">"user"</span>
+<span class="py">pg_password</span> <span class="p">=</span> <span class="s">"password"</span>
+<span class="py">pg_host</span> <span class="p">=</span> <span class="s">"localhost"</span>
+<span class="py">pg_port</span> <span class="p">=</span> <span class="mi">55432</span>
+<span class="py">pg_db_name</span> <span class="p">=</span> <span class="s">"aggregator"</span>
+<span class="py">pg_params</span> <span class="p">=</span> <span class="s">"sslmode=disable"</span>
+</code></pre></div></div>
+
+<h2 id="migration-mechanism">Migration mechanism</h2>
+
+<p>This service contains an implementation of a simple database migration mechanism that allows
+semi-automatic transitions between various database versions as well as building the latest version
+of the database from scratch.</p>
+
+<p>The migrations are no longer performed during initialization of the service to make running multiple
+instances of the service in parallel against the same database safer. Instead, the database
+migration version can now be set using the built-in CLI sub-command <code class="language-plaintext highlighter-rouge">migration</code> (aliases:
+<code class="language-plaintext highlighter-rouge">migrations</code> and <code class="language-plaintext highlighter-rouge">migrate</code>).</p>
+
+<h3 id="printing-information-about-database-migrations">Printing information about database migrations</h3>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./insights-results-aggregator migrations
+</code></pre></div></div>
+
+<h3 id="upgrading-the-database-to-the-latest-available-migration">Upgrading the database to the latest available migration</h3>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./insights-results-aggregator migration latest
+</code></pre></div></div>
+
+<h3 id="downgrading-to-the-base-empty-database-migration-version">Downgrading to the base (empty) database migration version</h3>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./insights-results-aggregator migration 0
+</code></pre></div></div>
+
+<p>Before using the migration mechanism, it is first necessary to initialize the migration information
+table <code class="language-plaintext highlighter-rouge">migration_info</code>. This can be done using the <code class="language-plaintext highlighter-rouge">migration.InitInfoTable(*sql.DB)</code> function. Any
+attempt to get or set the database version without initializing this table first will result in a
+<code class="language-plaintext highlighter-rouge">no such table: migration_info</code> error from the SQL driver.</p>
+
+<p>New migrations must be added manually into the code, because it was decided that modifying the list
+of migrations at runtime is undesirable.</p>
+
+<p>To migrate the database to a certain version, in either direction (both upgrade and downgrade), use
+the <code class="language-plaintext highlighter-rouge">migration.SetDBVersion(*sql.DB, migration.Version)</code> function.</p>
+
+<p><strong>To upgrade the database to the highest available version, use
+<code class="language-plaintext highlighter-rouge">migration.SetDBVersion(db, migration.GetMaxVersion())</code>.</strong> This will automatically perform all the
+necessary steps to migrate the database from its current version to the highest defined version.</p>
+
+<p>See <code class="language-plaintext highlighter-rouge">/migration/migration.go</code> documentation for an overview of all available DB migration
+functionality.</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/database.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

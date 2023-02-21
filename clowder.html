@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Clowder configuration | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Clowder configuration" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/clowder.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/clowder.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/clowder.html","@type":"WebPage","headline":"Clowder configuration","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 id="clowder-configuration">Clowder configuration</h1>
+
+<p>As the rest of the services deployed in the Console RedHat platform, the
+Insights Results Aggregator DB Writer should update its configuration
+using the relevant values extracted from the Clowder configuration file.</p>
+
+<p>For a general overview about Clowder configuration file and how it is used
+in the external data pipeline, please refer to
+<a href="https://ccx.pages.redhat.com/ccx-docs/customer/clowder.html">Clowder configuration</a>
+in CCX Docs.</p>
+
+<h2 id="how-can-we-deal-with-the-clowder-configuration-file">How can we deal with the Clowder configuration file?</h2>
+
+<p>As the service is implemented in Golang, we take advantage of using
+<a href="https://github.com/RedHatInsights/app-common-go/">app-common-go</a>.
+It provides to the service all the needed values for configuring Kafka
+access and the topics name mapping.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">conf</code> package is taking care of reading the data structures provided
+by <code class="language-plaintext highlighter-rouge">app-common-go</code> library and merge Clowder configuration with the service
+configuration.</p>
+
+<h1 id="insights-results-aggregator-specific-relevant-values">Insights Results Aggregator specific relevant values</h1>
+
+<p>This service is running in 2 different modes in the platform:</p>
+
+<ul>
+  <li>DB Writer: the service connects to Kafka to receive messages in a
+specific topic and write the results in a database.</li>
+  <li>Results Aggregator: expose the database stored data into several API
+endpoints.</li>
+</ul>
+
+<p>For this reason, the relevant values for both types of instances are a bit
+different:</p>
+
+<ul>
+  <li>DB Writer needs to update its Kafka access configuration and its DB
+access configuration in order to work.</li>
+  <li>Results Aggregator just need to update its DB access configuration.</li>
+</ul>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/clowder.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

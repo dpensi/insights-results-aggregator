@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>CI | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="CI" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/ci.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/ci.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/ci.html","@type":"WebPage","headline":"CI","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 id="ci">CI</h1>
+
+<p><a href="https://travis-ci.com/">Travis CI</a> is configured for this repository. Several tests and checks are
+started for all pull requests:</p>
+
+<ul>
+  <li>Unit tests that use the standard tool <code class="language-plaintext highlighter-rouge">go test</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">go fmt</code> tool to check code formatting. That tool is run with <code class="language-plaintext highlighter-rouge">-s</code> flag to perform
+<a href="https://golang.org/cmd/gofmt/#hdr-The_simplify_command">following transformations</a></li>
+  <li><code class="language-plaintext highlighter-rouge">go vet</code> to report likely mistakes in source code, for example suspicious constructs, such as
+<code class="language-plaintext highlighter-rouge">Printf</code> calls whose arguments do not align with the format string.</li>
+  <li><code class="language-plaintext highlighter-rouge">golint</code> as a linter for all Go sources stored in this repository</li>
+  <li><code class="language-plaintext highlighter-rouge">gocyclo</code> to report all functions and methods with too high cyclomatic complexity. The cyclomatic
+complexity of a function is calculated according to the following rules: 1 is the base complexity of
+a function +1 for each <code class="language-plaintext highlighter-rouge">if</code>, <code class="language-plaintext highlighter-rouge">for</code>, <code class="language-plaintext highlighter-rouge">case</code>, <code class="language-plaintext highlighter-rouge">&amp;&amp;</code> or <code class="language-plaintext highlighter-rouge">||</code> Go Report Card warns on functions with
+cyclomatic complexity &gt; 9</li>
+  <li><code class="language-plaintext highlighter-rouge">goconst</code> to find repeated strings that could be replaced by a constant</li>
+  <li><code class="language-plaintext highlighter-rouge">gosec</code> to inspect source code for security problems by scanning the Go AST</li>
+  <li><code class="language-plaintext highlighter-rouge">ineffassign</code> to detect and print all ineffectual assignments in Go code</li>
+  <li><code class="language-plaintext highlighter-rouge">errcheck</code> for checking for all unchecked errors in go programs</li>
+  <li><code class="language-plaintext highlighter-rouge">shellcheck</code> to perform static analysis for all shell scripts used in this repository</li>
+  <li><code class="language-plaintext highlighter-rouge">abcgo</code> to measure ABC metrics for Go source code and check if the metrics does not exceed
+specified threshold</li>
+  <li><code class="language-plaintext highlighter-rouge">golangci-lint</code> as Go linters aggregator with lot of linters enabled: https://golangci-lint.run/usage/linters/</li>
+</ul>
+
+<p>Please note that all checks mentioned above have to pass for the change to be merged into master
+branch.</p>
+
+<p>History of checks performed by CI is available at
+<a href="https://travis-ci.org/RedHatInsights/insights-results-aggregator">RedHatInsights / insights-results-aggregator</a>.</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/ci.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

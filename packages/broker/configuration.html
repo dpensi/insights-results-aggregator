@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<!--
+ Copyright 2023 Red Hat, Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<html>
+<head>
+<title>configuration.go</title>
+<meta charset="utf-8"/>
+<style type="text/css">body {
+    background: rgb(225, 225, 225);
+    margin: 0px;
+    padding: 0px;
+}
+
+#docgo p {
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 15px;
+    margin-left: 0px;
+}
+
+#docgo div {
+    display: inline;
+}
+
+#docgo #background {
+    position: fixed;
+    top: 0; left: 525px; right: 0; bottom: 0;
+    background: rgb(47, 47, 47);
+    border-left: 1px solid #e5e5ee;
+    z-index: -1;
+}
+
+#docgo .keyword {
+    color: rgb(250, 200, 100);
+}
+
+#docgo .literal {
+    color: rgb(140, 190, 100);
+}
+
+#docgo .ident {
+    color: white;
+}
+
+#docgo .operator {
+    color: white;
+}
+
+#docgo .comment {
+}
+
+#docgo h1, h2, h3, h4, h5 {
+    text-align: left;
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 15px;
+    margin-left: 0px;
+}
+
+#docgo h1 {
+    margin-top: 40px;
+}
+
+#docgo .doc {
+    vertical-align: top;
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif;
+    font-size: 15px;
+    line-height: 22px;
+    color: black;
+    min-width: 450px;
+    max-width: 450px;
+    padding-top: 10px;
+    padding-right: 25px;
+    padding-bottom: 1px;
+    padding-left: 50px;
+    overflow-x: hidden;
+}
+
+#docgo .code {
+    min-width: 650px;
+    max-width: 650px;
+    padding-left: 25px;
+    padding-right: 15px;
+    border-left: 1px;
+    overflow-x: hidden;
+    vertical-align: top;
+}
+
+#docgo .code pre code  {
+    font-size: 12px;
+    line-height: 18px;
+    font-family: Menlo, Monaco, Consolas, "Lucida Console", monospace;
+    color: rgb(120, 120, 120);
+}
+</style>
+</head>
+<body>
+<div id="docgo">
+  <div id="background"></div>
+  <table>
+    <thead><tr><th class="doc"><h1>configuration.go</h1></th><th class="code"></th></tr></thead>
+    <tbody>
+      
+      <tr class="section">
+	<td class="doc"></td>
+	<td class="code"><pre><code><div class="comment">/*
+Copyright © 2020 Red Hat, Inc.
+
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/</div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>Package broker contains data types, interfaces, and methods related to
+brokers that can be used to consume input messages by aggegator.</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">package</div> <div class="ident">broker</div><div class="operator"></div>
+
+<div class="keyword">import</div> <div class="operator">(</div>
+	<div class="literal">&#34;strings&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;time&#34;</div><div class="operator"></div>
+
+	<div class="ident">tlsutils</div> <div class="literal">&#34;github.com/RedHatInsights/insights-operator-utils/tls&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/Shopify/sarama&#34;</div><div class="operator"></div>
+	<div class="ident">mapset</div> <div class="literal">&#34;github.com/deckarep/golang-set&#34;</div><div class="operator"></div>
+	<div class="literal">&#34;github.com/rs/zerolog/log&#34;</div><div class="operator"></div>
+<div class="operator">)</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>Configuration represents configuration of Kafka broker</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">type</div> <div class="ident">Configuration</div> <div class="keyword">struct</div> <div class="operator">{</div>
+	<div class="ident">Address</div>              <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;address&#34; toml:&#34;address&#34;`</div><div class="operator"></div>
+	<div class="ident">SecurityProtocol</div>     <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;security_protocol&#34; toml:&#34;security_protocol&#34;`</div><div class="operator"></div>
+	<div class="ident">CertPath</div>             <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;cert_path&#34; toml:&#34;cert_path&#34;`</div><div class="operator"></div>
+	<div class="ident">SaslMechanism</div>        <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;sasl_mechanism&#34; toml:&#34;sasl_mechanism&#34;`</div><div class="operator"></div>
+	<div class="ident">SaslUsername</div>         <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;sasl_username&#34; toml:&#34;sasl_username&#34;`</div><div class="operator"></div>
+	<div class="ident">SaslPassword</div>         <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;sasl_password&#34; toml:&#34;sasl_password&#34;`</div><div class="operator"></div>
+	<div class="ident">Topic</div>                <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;topic&#34; toml:&#34;topic&#34;`</div><div class="operator"></div>
+	<div class="ident">Timeout</div>              <div class="ident">time</div><div class="operator">.</div><div class="ident">Duration</div> <div class="literal">`mapstructure:&#34;timeout&#34; toml:&#34;timeout&#34;`</div><div class="operator"></div>
+	<div class="ident">PayloadTrackerTopic</div>  <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;payload_tracker_topic&#34; toml:&#34;payload_tracker_topic&#34;`</div><div class="operator"></div>
+	<div class="ident">DeadLetterQueueTopic</div> <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;dead_letter_queue_topic&#34; toml:&#34;dead_letter_queue_topic&#34;`</div><div class="operator"></div>
+	<div class="ident">ServiceName</div>          <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;service_name&#34; toml:&#34;service_name&#34;`</div><div class="operator"></div>
+	<div class="ident">Group</div>                <div class="ident">string</div>        <div class="literal">`mapstructure:&#34;group&#34; toml:&#34;group&#34;`</div><div class="operator"></div>
+	<div class="ident">Enabled</div>              <div class="ident">bool</div>          <div class="literal">`mapstructure:&#34;enabled&#34; toml:&#34;enabled&#34;`</div><div class="operator"></div>
+	<div class="ident">OrgAllowlist</div>         <div class="ident">mapset</div><div class="operator">.</div><div class="ident">Set</div>    <div class="literal">`mapstructure:&#34;org_allowlist_file&#34; toml:&#34;org_allowlist_file&#34;`</div><div class="operator"></div>
+	<div class="ident">OrgAllowlistEnabled</div>  <div class="ident">bool</div>          <div class="literal">`mapstructure:&#34;enable_org_allowlist&#34; toml:&#34;enable_org_allowlist&#34;`</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+      <tr class="section">
+	<td class="doc"><p>SaramaConfigFromBrokerConfig returns a Config struct from broker.Configuration parameters</p>
+</td>
+	<td class="code"><pre><code><div class="keyword">func</div> <div class="ident">SaramaConfigFromBrokerConfig</div><div class="operator">(</div><div class="ident">cfg</div> <div class="ident">Configuration</div><div class="operator">)</div> <div class="operator">(</div><div class="operator">*</div><div class="ident">sarama</div><div class="operator">.</div><div class="ident">Config</div><div class="operator">,</div> <div class="ident">error</div><div class="operator">)</div> <div class="operator">{</div>
+	<div class="ident">saramaConfig</div> <div class="operator">:=</div> <div class="ident">sarama</div><div class="operator">.</div><div class="ident">NewConfig</div><div class="operator">(</div><div class="operator">)</div><div class="operator"></div>
+	<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Version</div> <div class="operator">=</div> <div class="ident">sarama</div><div class="operator">.</div><div class="ident">V0_10_2_0</div><div class="operator"></div>
+
+	<div class="keyword">if</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">Timeout</div> <div class="operator">&gt;</div> <div class="literal">0</div> <div class="operator">{</div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">DialTimeout</div> <div class="operator">=</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">Timeout</div><div class="operator"></div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">ReadTimeout</div> <div class="operator">=</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">Timeout</div><div class="operator"></div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">WriteTimeout</div> <div class="operator">=</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">Timeout</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+
+	<div class="keyword">if</div> <div class="ident">strings</div><div class="operator">.</div><div class="ident">Contains</div><div class="operator">(</div><div class="ident">cfg</div><div class="operator">.</div><div class="ident">SecurityProtocol</div><div class="operator">,</div> <div class="literal">&#34;SSL&#34;</div><div class="operator">)</div> <div class="operator">{</div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">TLS</div><div class="operator">.</div><div class="ident">Enable</div> <div class="operator">=</div> <div class="ident">true</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+	<div class="keyword">if</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">CertPath</div> <div class="operator">!=</div> <div class="literal">&#34;&#34;</div> <div class="operator">{</div>
+		<div class="ident">tlsConfig</div><div class="operator">,</div> <div class="ident">err</div> <div class="operator">:=</div> <div class="ident">tlsutils</div><div class="operator">.</div><div class="ident">NewTLSConfig</div><div class="operator">(</div><div class="ident">cfg</div><div class="operator">.</div><div class="ident">CertPath</div><div class="operator">)</div><div class="operator"></div>
+		<div class="keyword">if</div> <div class="ident">err</div> <div class="operator">!=</div> <div class="ident">nil</div> <div class="operator">{</div>
+			<div class="ident">log</div><div class="operator">.</div><div class="ident">Error</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msgf</div><div class="operator">(</div><div class="literal">&#34;Unable to load TLS config for %s cert&#34;</div><div class="operator">,</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">CertPath</div><div class="operator">)</div><div class="operator"></div>
+			<div class="keyword">return</div> <div class="ident">nil</div><div class="operator">,</div> <div class="ident">err</div><div class="operator"></div>
+		<div class="operator">}</div><div class="operator"></div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">TLS</div><div class="operator">.</div><div class="ident">Config</div> <div class="operator">=</div> <div class="ident">tlsConfig</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+	<div class="keyword">if</div> <div class="ident">strings</div><div class="operator">.</div><div class="ident">HasPrefix</div><div class="operator">(</div><div class="ident">cfg</div><div class="operator">.</div><div class="ident">SecurityProtocol</div><div class="operator">,</div> <div class="literal">&#34;SASL_&#34;</div><div class="operator">)</div> <div class="operator">{</div>
+		<div class="ident">log</div><div class="operator">.</div><div class="ident">Info</div><div class="operator">(</div><div class="operator">)</div><div class="operator">.</div><div class="ident">Msg</div><div class="operator">(</div><div class="literal">&#34;Configuring SASL authentication&#34;</div><div class="operator">)</div><div class="operator"></div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">SASL</div><div class="operator">.</div><div class="ident">Enable</div> <div class="operator">=</div> <div class="ident">true</div><div class="operator"></div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">SASL</div><div class="operator">.</div><div class="ident">User</div> <div class="operator">=</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">SaslUsername</div><div class="operator"></div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">SASL</div><div class="operator">.</div><div class="ident">Password</div> <div class="operator">=</div> <div class="ident">cfg</div><div class="operator">.</div><div class="ident">SaslPassword</div><div class="operator"></div>
+		<div class="ident">saramaConfig</div><div class="operator">.</div><div class="ident">Net</div><div class="operator">.</div><div class="ident">SASL</div><div class="operator">.</div><div class="ident">Mechanism</div> <div class="operator">=</div> <div class="ident">sarama</div><div class="operator">.</div><div class="ident">SASLMechanism</div><div class="operator">(</div><div class="ident">cfg</div><div class="operator">.</div><div class="ident">SaslMechanism</div><div class="operator">)</div><div class="operator"></div>
+	<div class="operator">}</div><div class="operator"></div>
+	<div class="keyword">return</div> <div class="ident">saramaConfig</div><div class="operator">,</div> <div class="ident">nil</div><div class="operator"></div>
+<div class="operator">}</div><div class="operator"></div>
+
+</code></pre></td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

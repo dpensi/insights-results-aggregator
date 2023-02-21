@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Database retention policy | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Database retention policy" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/db_retention_policy.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/db_retention_policy.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/db_retention_policy.html","@type":"WebPage","headline":"Database retention policy","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 class="no_toc" id="database-retention-policy">Database retention policy</h1>
+
+<h2 class="no_toc text-delta" id="table-of-contents">Table of contents</h2>
+
+<ol id="markdown-toc">
+  <li><a href="#list-of-tables" id="markdown-toc-list-of-tables">List of tables</a></li>
+  <li><a href="#retention-policy" id="markdown-toc-retention-policy">Retention policy</a></li>
+  <li><a href="#tables-without-retention-policy" id="markdown-toc-tables-without-retention-policy">Tables without retention policy</a></li>
+  <li><a href="#tables-with-retention-policy" id="markdown-toc-tables-with-retention-policy">Tables with retention policy</a></li>
+</ol>
+
+<h2 id="list-of-tables">List of tables</h2>
+
+<p>All tables that are stored in external data pipeline database:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> Schema |                Name                | Type
+--------+------------------------------------+------
+ public | cluster_rule_toggle                | table
+ public | cluster_rule_user_feedback         | table
+ public | cluster_user_rule_disable_feedback | table
+ public | consumer_error                     | table
+ public | migration_info                     | table
+ public | recommendation                     | table
+ public | report                             | table
+ public | rule_hit                           | table
+ public | advisor_ratings                    | table
+</code></pre></div></div>
+
+<h2 id="retention-policy">Retention policy</h2>
+
+<p>This is the required retention policy that is watched by
+<code class="language-plaintext highlighter-rouge">insights-results-aggregator-cleaner</code> tool:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>              Table name            | Retention period
+------------------------------------+-----------------
+ cluster_rule_toggle                | inf.
+ cluster_rule_user_feedback         | inf.
+ cluster_user_rule_disable_feedback | inf.
+ consumer_error                     | manual investigation
+ migration_info                     | inf.
+ recommendation                     | 2 months
+ report                             | 2 months
+ rule_hit                           | 2 months
+ advisor_ratings                    | inf.
+</code></pre></div></div>
+
+<h2 id="tables-without-retention-policy">Tables without retention policy</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>              Table name            | Retention period
+------------------------------------+-----------------
+ migration_info                     | inf.
+</code></pre></div></div>
+
+<p>This table contains just one record with DB version value. Does not have (and
+should not) to be cleaned up.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>              Table name            | Retention period
+------------------------------------+-----------------
+ cluster_rule_toggle                | inf.
+ cluster_rule_user_feedback         | inf.
+ cluster_user_rule_disable_feedback | inf.
+ advisor_ratings                    | inf.
+</code></pre></div></div>
+
+<p>These tables contain feedback provided by users (feedback provided by user
+while disabling the rule on UI, cluster independent ratings of a
+recommendation, per user) and might be used for statistical purposes. Sizes of
+such tables are very small compared with other tables and does not casuse any
+bottleneck in the external data pipeline. Thus no retention policy needs to be
+followed there.</p>
+
+<h2 id="tables-with-retention-policy">Tables with retention policy</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>              Table name            | Retention period
+------------------------------------+-----------------
+ recommendation                     | 2 months
+ report                             | 2 months
+ rule_hit                           | 2 months
+</code></pre></div></div>
+
+<p>All three tables listed above should contain data for “live” (i.e. connected)
+clusters. And these tables are critical component of the whole external data
+pipeline and might be the bottleneck for the system. So it is desirable to
+cleanup old disconnected clusters. Retention policy set to 2 months is set to
+keep some historical data for clusters disconnected in recent days.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>              Table name            | Retention period
+------------------------------------+-----------------
+ consumer_error                     | manual investigation
+</code></pre></div></div>
+
+<p>That table contains errors that happen while processing a message consumed from
+Kafka are logged into this table. This allows easier debugging of various
+issues, especially those related to unexpected input data format.</p>
+
+<p>Content of this table needs to be investigated manually and then cleaned by the
+compound key (topic+partition+topic_offset).</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/db_retention_policy.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

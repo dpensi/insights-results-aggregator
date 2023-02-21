@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Rules | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Rules" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/rules.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/rules.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/rules.html","@type":"WebPage","headline":"Rules","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 id="rules">Rules</h1>
+
+<p>The user has the ability to disable a rule/health check recommendation that they’re not interested
+in to stop it from showing in OCM. The user also has the ability to re-enable the rule, in case they
+later become interested in it, or in the case of an accidental disable, for example.</p>
+
+<p>This is made possible by using these two endpoints:
+<code class="language-plaintext highlighter-rouge">clusters/{cluster}/rules/{rule_id}/disable</code>
+<code class="language-plaintext highlighter-rouge">clusters/{cluster}/rules/{rule_id}/enable</code></p>
+
+<h2 id="tutorial-rule">Tutorial rule</h2>
+
+<p>Directory <code class="language-plaintext highlighter-rouge">rules/tutorial/</code> contains tutorial rule that is ‘hit’ by any cluster.</p>
+
+<h2 id="rules-content">Rules content</h2>
+
+<p>The generated cluster reports from Insights results contain three lists of rules that were either
+<strong>skipped</strong> (because of missing requirements, etc.), <strong>passed</strong> (the rule got executed but no issue
+was found), or <strong>hit</strong> (the rule got executed and found the issue it was looking for) by the
+cluster, where each rule is represented as a dictionary containing identifying information about the
+rule itself.</p>
+
+<p>The <strong>hit</strong> rules are the rules that the customer is interested in and therefore the information
+about them (their <strong>content</strong>) needs to be displayed in OCM. The content for the rules is present in
+another repository, alongside the actual rule implementations, which is primarily maintained by the
+support-facing team.
+For that reason, the <code class="language-plaintext highlighter-rouge">insights-results-aggregator</code> is setup in a way, that the content we’re
+interested in is copied to the Docker image from the repository during image build and we have a
+push webhook on master branch set up in that repository, signalling our app to be rebuilt.</p>
+
+<p>This content is then processed upon application start-up, correctly parsed by the package <code class="language-plaintext highlighter-rouge">content</code>
+and saved into the database (see DB structure).</p>
+
+<p>When a request for a cluster report comes from OCM, the report is parsed (TODO: parse reports only
+once when consuming them) and content for all the hit rules is returned.</p>
+
+<h3 id="local-environment-with-rules-content">Local environment with rules content</h3>
+
+<p>The rules content parser is configured by default to expect the content in a root directory
+<code class="language-plaintext highlighter-rouge">/rules-content</code>.
+This can be changed either by an environment variable <code class="language-plaintext highlighter-rouge">INSIGHTS_RESULTS_AGGREGATOR__CONTENT__PATH</code>
+or by modifying the config file entry:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[content]</span>
+<span class="py">path</span> <span class="p">=</span> <span class="s">"/rules-content"</span>
+</code></pre></div></div>
+
+<p>To get the latest rules content locally, you can <code class="language-plaintext highlighter-rouge">make rules_content</code>, which just runs the script
+<code class="language-plaintext highlighter-rouge">update_rules_content.sh</code> mimicking the Dockerfile behavior (NOTE: you need to be in RH VPN to be
+able to access that repository, but it is not private). The script copies the content into a
+<code class="language-plaintext highlighter-rouge">.gitignored</code> folder <code class="language-plaintext highlighter-rouge">rules-content</code>, so all that’s necessary is to change the expected path.</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/rules.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

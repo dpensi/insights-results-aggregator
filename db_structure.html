@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>DB structure | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="DB structure" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/db_structure.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/db_structure.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/db_structure.html","@type":"WebPage","headline":"DB structure","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 class="no_toc" id="db-structure">DB structure</h1>
+
+<h3 id="note">Note</h3>
+
+<p>Please look <a href="https://redhatinsights.github.io/insights-results-aggregator/db-description/">at detailed schema
+description</a>
+for more details about tables, indexes, and keys.</p>
+
+<h2 class="no_toc text-delta" id="table-of-contents">Table of contents</h2>
+
+<ol id="markdown-toc">
+  <li><a href="#note" id="markdown-toc-note">Note</a></li>
+  <li><a href="#list-of-tables" id="markdown-toc-list-of-tables">List of tables</a></li>
+  <li><a href="#table-report" id="markdown-toc-table-report">Table <code class="language-plaintext highlighter-rouge">report</code></a></li>
+  <li><a href="#table-rule_hit" id="markdown-toc-table-rule_hit">Table <code class="language-plaintext highlighter-rouge">rule_hit</code></a></li>
+  <li><a href="#table-cluster_rule_user_feedback" id="markdown-toc-table-cluster_rule_user_feedback">Table <code class="language-plaintext highlighter-rouge">cluster_rule_user_feedback</code></a></li>
+  <li><a href="#table-cluster_rule_toggle" id="markdown-toc-table-cluster_rule_toggle">Table <code class="language-plaintext highlighter-rouge">cluster_rule_toggle</code></a></li>
+  <li><a href="#table-cluster_user_rule_disable_feedback" id="markdown-toc-table-cluster_user_rule_disable_feedback">Table <code class="language-plaintext highlighter-rouge">cluster_user_rule_disable_feedback</code></a></li>
+  <li><a href="#table-recommendation" id="markdown-toc-table-recommendation">Table <code class="language-plaintext highlighter-rouge">recommendation</code></a></li>
+  <li><a href="#table-advisor_ratings" id="markdown-toc-table-advisor_ratings">Table <code class="language-plaintext highlighter-rouge">advisor_ratings</code></a></li>
+  <li><a href="#table-consumer_error" id="markdown-toc-table-consumer_error">Table <code class="language-plaintext highlighter-rouge">consumer_error</code></a></li>
+  <li><a href="#table-migration_info" id="markdown-toc-table-migration_info">Table <code class="language-plaintext highlighter-rouge">migration_info</code></a></li>
+  <li><a href="#schema-description" id="markdown-toc-schema-description">Schema description</a></li>
+</ol>
+
+<h2 id="list-of-tables">List of tables</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> Schema |                Name                | Type
+--------+------------------------------------+------
+ public | cluster_rule_toggle                | table
+ public | cluster_rule_user_feedback         | table
+ public | cluster_user_rule_disable_feedback | table
+ public | consumer_error                     | table
+ public | migration_info                     | table
+ public | recommendation                     | table
+ public | report                             | table
+ public | rule_hit                           | table
+ public | advisor_ratings                    | table
+</code></pre></div></div>
+
+<h2 id="table-report">Table <code class="language-plaintext highlighter-rouge">report</code></h2>
+
+<p>This table is used as a cache for reports consumed from broker. Size of this
+table (i.e. number of records) scales linearly with the number of clusters,
+because only latest report for given cluster is stored (it is guarantied by DB
+constraints). That table has defined compound key <code class="language-plaintext highlighter-rouge">org_id+cluster</code>,
+additionally <code class="language-plaintext highlighter-rouge">cluster</code> name needs to be unique across all organizations.
+Additionally <code class="language-plaintext highlighter-rouge">kafka_offset</code> is used to speedup consuming messages from Kafka
+topic in case the offset is lost due to issues in Kafka, Kafka library, or
+the service itself (messages with lower offset are skipped):</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">report</span> <span class="p">(</span>
+    <span class="n">org_id</span>          <span class="nb">INTEGER</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="k">cluster</span>         <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span> <span class="k">UNIQUE</span><span class="p">,</span>
+    <span class="n">report</span>          <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">reported_at</span>     <span class="nb">TIMESTAMP</span><span class="p">,</span>
+    <span class="n">last_checked_at</span> <span class="nb">TIMESTAMP</span><span class="p">,</span>
+    <span class="n">kafka_offset</span>    <span class="nb">BIGINT</span> <span class="k">NOT</span> <span class="k">NULL</span> <span class="k">DEFAULT</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">org_id</span><span class="p">,</span> <span class="k">cluster</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-rule_hit">Table <code class="language-plaintext highlighter-rouge">rule_hit</code></h2>
+
+<p>This table represents the content for Insights rules to be displayed by OCM.</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">rule_hit</span> <span class="p">(</span>
+    <span class="n">org_id</span>         <span class="nb">INTEGER</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">cluster_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rule_fqdn</span>      <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">error_key</span>      <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">template_data</span>  <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">cluster_id</span><span class="p">,</span> <span class="n">org_id</span><span class="p">,</span> <span class="n">rule_fqdn</span><span class="p">,</span> <span class="n">error_key</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-cluster_rule_user_feedback">Table <code class="language-plaintext highlighter-rouge">cluster_rule_user_feedback</code></h2>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">-- user_vote is user's vote,</span>
+<span class="c1">-- 0 is none,</span>
+<span class="c1">-- 1 is like,</span>
+<span class="c1">-- -1 is dislike</span>
+<span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">cluster_rule_user_feedback</span> <span class="p">(</span>
+    <span class="n">cluster_id</span>  <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rule_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">error_key</span>   <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">user_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">message</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">user_vote</span>   <span class="nb">SMALLINT</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">added_at</span>    <span class="nb">TIMESTAMP</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">updated_at</span>  <span class="nb">TIMESTAMP</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">cluster_id</span><span class="p">,</span> <span class="n">rule_id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">,</span> <span class="n">error_key</span><span class="p">),</span>
+    <span class="k">FOREIGN</span> <span class="k">KEY</span> <span class="p">(</span><span class="n">cluster_id</span><span class="p">)</span>
+        <span class="k">REFERENCES</span> <span class="n">report</span><span class="p">(</span><span class="k">cluster</span><span class="p">)</span>
+        <span class="k">ON</span> <span class="k">DELETE</span> <span class="k">CASCADE</span><span class="p">,</span>
+    <span class="k">FOREIGN</span> <span class="k">KEY</span> <span class="p">(</span><span class="n">rule_id</span><span class="p">)</span>
+        <span class="k">REFERENCES</span> <span class="k">rule</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+        <span class="k">ON</span> <span class="k">DELETE</span> <span class="k">CASCADE</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-cluster_rule_toggle">Table <code class="language-plaintext highlighter-rouge">cluster_rule_toggle</code></h2>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">cluster_rule_toggle</span> <span class="p">(</span>
+    <span class="n">cluster_id</span>  <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rule_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">error_key</span>   <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">user_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">disabled</span>    <span class="nb">SMALLINT</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">disabled_at</span> <span class="nb">TIMESTAMP</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">enabled_at</span>  <span class="nb">TIMESTAMP</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">updated_at</span>  <span class="nb">TIMESTAMP</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+
+    <span class="k">CHECK</span> <span class="p">(</span><span class="n">disabled</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">AND</span> <span class="n">disabled</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">),</span>
+
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">cluster_id</span><span class="p">,</span> <span class="n">rule_id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-cluster_user_rule_disable_feedback">Table <code class="language-plaintext highlighter-rouge">cluster_user_rule_disable_feedback</code></h2>
+
+<p>Feedback provided by user while disabling the rule on UI.</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">cluster_user_rule_disable_feedback</span> <span class="p">(</span>
+    <span class="n">cluster_id</span>  <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">user_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rule_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">error_key</span>   <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">message</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">added_at</span>    <span class="nb">TIMESTAMP</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">updated_at</span>  <span class="nb">TIMESTAMP</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">cluster_id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">,</span> <span class="n">rule_id</span><span class="p">,</span> <span class="n">error_key</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-recommendation">Table <code class="language-plaintext highlighter-rouge">recommendation</code></h2>
+
+<p>All recommendations per organization and cluster.</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">recommendations</span> <span class="p">(</span>
+    <span class="n">org_id</span>      <span class="nb">INTEGER</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">cluster_id</span>  <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rule_fqdn</span>   <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">error_key</span>   <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rule_id</span>     <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">created_at</span>  <span class="nb">TIMESTAMP</span> <span class="k">WITHOUT</span> <span class="nb">TIME</span> <span class="k">ZONE</span><span class="p">,</span>
+
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">org_id</span><span class="p">,</span> <span class="n">cluster_id</span><span class="p">,</span> <span class="n">rule_fqdn</span><span class="p">,</span> <span class="n">error_key</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-advisor_ratings">Table <code class="language-plaintext highlighter-rouge">advisor_ratings</code></h2>
+
+<p>Cluster independent ratings of a recommendation, per user</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">advisor_ratings</span> <span class="p">(</span>
+    <span class="n">user_id</span> <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">org_id</span> <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rule_fqdn</span> <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">error_key</span> <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">rated_at</span> <span class="nb">TIMESTAMP</span><span class="p">,</span>
+    <span class="n">last_updated_at</span> <span class="nb">TIMESTAMP</span><span class="p">,</span>
+    <span class="n">rating</span> <span class="nb">SMALLINT</span><span class="p">,</span>
+    <span class="n">rule_id</span> <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">org_id</span><span class="p">,</span> <span class="n">rule_fqdn</span><span class="p">,</span> <span class="n">error_key</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-consumer_error">Table <code class="language-plaintext highlighter-rouge">consumer_error</code></h2>
+
+<p>Errors that happen while processing a message consumed from Kafka are logged into this table. This
+allows easier debugging of various issues, especially those related to unexpected input data format.</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">consumer_error</span> <span class="p">(</span>
+    <span class="n">topic</span>           <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">partition</span>       <span class="nb">INTEGER</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">topic_offset</span>    <span class="nb">INTEGER</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="k">key</span>             <span class="nb">VARCHAR</span><span class="p">,</span>
+    <span class="n">produced_at</span>     <span class="nb">TIMESTAMP</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">consumed_at</span>     <span class="nb">TIMESTAMP</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+    <span class="n">message</span>         <span class="nb">VARCHAR</span><span class="p">,</span>
+    <span class="n">error</span>           <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span><span class="p">,</span>
+
+    <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">partition</span><span class="p">,</span> <span class="n">topic_offset</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="table-migration_info">Table <code class="language-plaintext highlighter-rouge">migration_info</code></h2>
+
+<p>This table contains just one record with DB version value.</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">migration_info</span> <span class="p">(</span>
+    <span class="k">version</span>         <span class="nb">VARCHAR</span> <span class="k">NOT</span> <span class="k">NULL</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="schema-description">Schema description</h2>
+
+<p>DB schema description can be generated by <code class="language-plaintext highlighter-rouge">generate_db_schema_doc.sh</code> script.
+Output is written into directory <code class="language-plaintext highlighter-rouge">docs/db-description/</code>. Its content can be
+viewed <a href="https://redhatinsights.github.io/insights-results-aggregator/db-description/">at this
+address</a>.</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/db_structure.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>

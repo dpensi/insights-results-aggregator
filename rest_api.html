@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>REST API | Insights Results Aggregator</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="REST API" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Aggregator service for Openshist insights results" />
+<meta property="og:description" content="Aggregator service for Openshist insights results" />
+<link rel="canonical" href="https://redhatinsights.github.io/insights-results-aggregator/rest_api.html" />
+<meta property="og:url" content="https://redhatinsights.github.io/insights-results-aggregator/rest_api.html" />
+<meta property="og:site_name" content="Insights Results Aggregator" />
+<script type="application/ld+json">
+{"description":"Aggregator service for Openshist insights results","url":"https://redhatinsights.github.io/insights-results-aggregator/rest_api.html","@type":"WebPage","headline":"REST API","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/insights-results-aggregator/assets/css/style.css?v=">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://redhatinsights.github.io/insights-results-aggregator/">Insights Results Aggregator</a></h1>
+      
+
+      <h1 id="rest-api">REST API</h1>
+
+<p>Aggregator service provides information about its REST API schema via endpoint <code class="language-plaintext highlighter-rouge">api/v1/openapi.json</code>.
+OpenAPI 3.0 is used to describe the schema; it can be read by human and consumed by computers.</p>
+
+<p>For example, if aggregator is started locally, it is possible to read schema based on OpenAPI 3.0
+specification by using the following command:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl localhost:8080/api/v1/openapi.json
+</code></pre></div></div>
+
+<p>Please note that OpenAPI schema is accessible w/o the need to provide authorization tokens.</p>
+
+<h2 id="accessing-results">Accessing results</h2>
+
+<h3 id="settings-for-localhost">Settings for localhost</h3>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>export ADDRESS=localhost:8080/api/v1
+</code></pre></div></div>
+
+<h3 id="basic-endpoints">Basic endpoints</h3>
+
+<h4 id="list-of-clusters-associated-with-the-specified-organization-id">List of clusters associated with the specified organization ID</h4>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/organizations/{orgId}/clusters
+</code></pre></div></div>
+
+<h5 id="usage">Usage:</h5>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -k -v $ADDRESS/organizations/{orgId}/clusters
+</code></pre></div></div>
+
+<h4 id="report-for-the-given-organization-and-cluster">Report for the given organization and cluster</h4>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/organizations/{orgId}/clusters/{clusterId}/users/{userId}/report
+</code></pre></div></div>
+
+<h5 id="usage-1">Usage:</h5>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -k -v $ADDRESS/organizations/{orgId}/clusters/{clusterId}/users/{userId}/report
+</code></pre></div></div>
+
+<h4 id="latest-reports-for-the-given-list-of-clusters">Latest reports for the given list of clusters</h4>
+
+<h5 id="using-get-method">Using <code class="language-plaintext highlighter-rouge">GET</code> method</h5>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/organizations/{orgId}/clusters/{clusterList}/reports
+</code></pre></div></div>
+
+<h5 id="usage-2">Usage:</h5>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -k -v $ADDRESS/organizations/{orgId}/clusters/{cluster1}/report
+curl -k -v $ADDRESS/organizations/{orgId}/clusters/{cluster1},{cluster2}/report
+curl -k -v $ADDRESS/organizations/{orgId}/clusters/{cluster1},{cluster2},{cluster3}/report
+</code></pre></div></div>
+
+<p>Plase note that the total URL length is limited, usually to 2000 or 2048 characters.</p>
+
+<h5 id="using-post-method">Using <code class="language-plaintext highlighter-rouge">POST</code> method</h5>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/organizations/{orgId}/clusters/reports
+</code></pre></div></div>
+
+<h5 id="usage-3">Usage:</h5>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -k -v $ADDRESS/organizations/{orgId}/clusters/reports -d @cluster_list.json
+</code></pre></div></div>
+
+<h5 id="format-of-the-payload">Format of the payload:</h5>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+        </span><span class="nl">"clusters"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+                </span><span class="s2">"34c3ecc5-624a-49a5-bab8-4fdc5e51a266"</span><span class="p">,</span><span class="w">
+                </span><span class="s2">"74ae54aa-6577-4e80-85e7-697cb646ff37"</span><span class="p">,</span><span class="w">
+                </span><span class="s2">"a7467445-8d6a-43cc-b82c-7007664bdf69"</span><span class="p">,</span><span class="w">
+                </span><span class="s2">"ee7d2bf4-8933-4a3a-8634-3328fe806e08"</span><span class="w">
+        </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h4 id="latest-rule-report-for-the-given-organization-cluster-user-and-rule-ids">Latest rule report for the given organization, cluster, user and rule ids</h4>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/organizations/{orgId}/clusters/{clusterId}/users/{userId}/rules/{ruleId}
+</code></pre></div></div>
+
+<h4 id="list-of-clusters-for-a-given-rule-selector-plugin_nameerror_key-within-the-specified-organization-id">List of clusters for a given rule selector (plugin_name|error_key) within the specified organization ID</h4>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/rules/{rule_selector}/organizations/{org_id}/users/{user_id}/clusters_detail
+</code></pre></div></div>
+
+<h5 id="usage-4">Usage:</h5>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -k -v $ADDRESS/rules/{rule_selector}/organizations/{org_id}/users/{user_id}/clusters_detail
+</code></pre></div></div>
+
+<p>Plase note that user ID is expected, but is only used for improving logging.</p>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/RedHatInsights/insights-results-aggregator/edit/gh-pages/rest_api.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+    
+  </body>
+</html>
